@@ -1,0 +1,41 @@
+{
+    "expo": {
+      "name": "hello-world",
+      "slug": "reagent-expo",
+      "version": "1.0.0",
+      "orientation": "portrait",
+      "icon": "./assets/icon.png",
+      "userInterfaceStyle": "light",
+      "newArchEnabled": true,
+      "doctor": {
+	  "reactNativeDirectoryCheck": {
+              "exclude": ["react-redux"]
+	  }
+      },
+      "splash": {
+	  "image": "./assets/splash.png",
+	  "resizeMode": "contain",
+	  "backgroundColor": "#ffffff"
+      },
+      "updates": {
+	  "fallbackToCacheTimeout": 0
+      },
+      "assetBundlePatterns": [
+	  "**/*"
+      ],
+      "ios": {
+	  "supportsTablet": true,
+	  "bundleIdentifier": "com.anonymous.reagentexpo"
+      },
+      "android": {
+	  "adaptiveIcon": {
+              "foregroundImage": "./assets/adaptive-icon.png",
+              "backgroundColor": "#FFFFFF"
+	  },
+	  "package": "com.anonymous.reagentexpo"
+      },
+      "web": {
+	  "favicon": "./assets/favicon.png"
+      }
+    }
+}

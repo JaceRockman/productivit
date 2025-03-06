@@ -1,0 +1,8 @@
+* ProductiviT
+Everything will just be nested entities of the T's. The top level of nested structures will commonly be Text nodes and it can have a shortcut that controls one of its sub-nodes like starting or stopping a timer, marking a task as complete, or updating a tracker's value.
+** The T's
+*** Timers
+*** Tasks
+*** Text
+*** Trackers
+*** Tableau?
