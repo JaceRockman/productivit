@@ -13,7 +13,7 @@
                       :db/isComponent true}})
 
 (def example-text-node
-  {:text/value "Pomodoros"
+  {:text-value "Pomodoros"
    :primary-sub-node :tracker-node
    :sub-nodes [:tracker-node :time-node-1 :time-node-2 :time-node-3 :time-node-4]})
 
@@ -28,10 +28,10 @@
 (def example-time-node
   {:primary-sub-node :task-node
    :sub-nodes [:task-node]
-   :time/start-time t/now
-   :time/end-time (t/plus (t/now) (t/minutes 1))
-   :time/on-time-start 'time-start
-   :time/on-time-end 'time-end})
+   :start-time t/now
+   :end-time (t/plus (t/now) (t/minutes 1))
+   :on-time-start 'time-start
+   :on-time-end 'time-end})
 
 (defn task-toggled
   []
@@ -40,8 +40,8 @@
 (def example-task-node
   {:primary-sub-node :tracker-node
    :sub-nodes [:tracker-node :task-node-1 :task-node-2 :task-node-3]
-   :task/value false
-   :task/on-value-toggled 'task-toggled})
+   :task-value false
+   :on-task-toggled 'task-toggled})
 
 (defn tracker-increase
   []
@@ -54,73 +54,73 @@
 (def example-tracker-node
   {:primary-sub-node :task-node
    :sub-nodes [:task-node]
-   :tracker/value 0
-   :tracker/max-value 5
-   :tracker/on-tracker-increase 'tracker-increase
-   :tracker/on-tracker-decrease 'tracker-decrease})
+   :tracker-value 0
+   :tracker-max-value 5
+   :on-tracker-increase 'tracker-increase
+   :on-tracker-decrease 'tracker-decrease})
 
 
 
 (def example-group
   [{:db/id            "group"
-    :text/value       "ProductiviT"
+    :text-value       "ProductiviT"
     :primary-sub-node "progress-tracker"
     :sub-nodes        ["progress-tracker" "text-ui" "time-ui" "task-ui" "tracker-ui"]}
    {:db/id             "progress-tracker"
-    :tracker/value     0
-    :tracker/max-value 4}
+    :tracker-value     0
+    :tracker-max-value 4}
    {:db/id            "text-ui"
-    :text/value       "Text UI"
+    :text-value       "Text UI"
     :primary-sub-node "text-progress-tracker"
     :sub-nodes        ["text-progress-tracker" "text-task-1" "text-task-2" "text-task-3"]}
    {:db/id             "text-progress-tracker"
-    :tracker/value     0
-    :tracker/max-value 3}
+    :tracker-value     0
+    :tracker-max-value 3}
    {:db/id      "text-task-1"
-    :task/value false}
+    :task-value false}
    {:db/id      "text-task-2"
-    :task/value false}
+    :task-value false}
    {:db/id      "text-task-3"
-    :task/value false}
+    :task-value false}
 
    {:db/id            "time-ui"
-    :text/value       "Time UI"
+    :text-value       "Time UI"
     :primary-sub-node "time-progress-tracker"
     :sub-nodes        ["time-progress-tracker" "time-task-1" "time-task-2" "time-task-3"]}
    {:db/id             "time-progress-tracker"
-    :tracker/value     0
-    :tracker/max-value 3}
+    :tracker-value     0
+    :tracker-max-value 3}
    {:db/id      "time-task-1"
-    :task/value false}
+    :task-value false}
    {:db/id      "time-task-2"
-    :task/value false}
+    :task-value false}
    {:db/id      "time-task-3"
-    :task/value false}
+    :task-value false}
 
    {:db/id            "task-ui"
-    :text/value       "Task UI"
+    :text-value       "Task UI"
     :primary-sub-node "task-progress-tracker"
     :sub-nodes        ["task-progress-tracker" "task-task-1" "task-task-2" "task-task-3"]}
    {:db/id             "task-progress-tracker"
-    :tracker/value     0
-    :tracker/max-value 3}
+    :tracker-value     0
+    :tracker-max-value 3}
    {:db/id      "task-task-1"
-    :task/value false}
+    :task-value false}
    {:db/id      "task-task-2"
-    :task/value false}
+    :task-value false}
    {:db/id      "task-task-3"
-    :task/value false}
+    :task-value false}
 
    {:db/id            "tracker-ui"
-    :text/value       "Tracker UI"
+    :text-value       "Tracker UI"
     :primary-sub-node "tracker-progress-tracker"
     :sub-nodes        ["tracker-progress-tracker" "tracker-task-1" "tracker-task-2" "tracker-task-3"]}
    {:db/id             "tracker-progress-tracker"
-    :tracker/value     0
-    :tracker/max-value 3}
+    :tracker-value     0
+    :tracker-max-value 3}
    {:db/id      "tracker-task-1"
-    :task/value false}
+    :task-value false}
    {:db/id      "tracker-task-2"
-    :task/value false}
+    :task-value false}
    {:db/id      "tracker-task-3"
-    :task/value false}])
+    :task-value false}])
