@@ -124,3 +124,6 @@
     :task-value false}
    {:db/id      "tracker-task-3"
     :task-value false}])
+
+(def example-group-state
+  [{:db/id 1 :show-children true}])

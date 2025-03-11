@@ -6,7 +6,12 @@
             [datascript.impl.entity :as de]
             [data :as data]))
 
-(defn initialize-db
+(defn initialize-app-db
   [conn]
   (ds/transact! conn data/example-group)
+  :success)
+
+(defn initialize-app-state
+  [conn]
+  (ds/transact! conn data/example-group-state)
   :success)
