@@ -65,7 +65,7 @@
   [{:db/id            "group"
     :text-value       "ProductiviT"
     :primary-sub-node "progress-tracker"
-    :sub-nodes        ["progress-tracker" "text-ui" "time-ui" "task-ui" "tracker-ui"]}
+    :sub-nodes        ["progress-tracker" "time-example" "text-ui" "time-ui" "task-ui" "tracker-ui"]}
    {:db/id             "progress-tracker"
     :tracker-value     0
     :tracker-max-value 4}
@@ -82,6 +82,9 @@
     :task-value false}
    {:db/id      "text-task-3"
     :task-value false}
+   {:db/id "time-example"
+    :start-time       (t/now)
+    :end-time         (t/plus (t/now) (t/minutes 1))}
 
    {:db/id            "time-ui"
     :text-value       "Time UI"

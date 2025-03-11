@@ -5,7 +5,8 @@
    [datascript.core :as ds]
    [expo.root :as expo-root]
    [init :as init]
-   [data :as data])
+   [data :as data]
+   [cljs-time.format :as t-format])
   (:require-macros
    [macros :refer [profile]]))
 
@@ -61,6 +62,9 @@
    (when (and (not-empty sub-nodes) (get-component-state state-conn id :show-children))
      (map render-node (repeat state-conn) sub-nodes (repeat (inc nesting-depth))))])
 
+(def standard-time-format
+  (t-format/formatter "MMM' 'dd', 'YYYY"))
+
 (defn time-node-component
   [state-conn
    {:keys [:db/id
@@ -71,7 +75,8 @@
   [:> rn/Pressable {:key      (str (random-uuid))
                     ;; :style (node-style nesting-depth)
                     :on-press #(ds/transact! state-conn [[:db.fn/call toggle-state id :show-children]])}
-   [:> rn/Text {:style (node-style nesting-depth)} (str "Time Value: " start-time)]
+   [:> rn/Text {:style (node-style nesting-depth)} (str "Time Value: "
+                                                        (t-format/unparse standard-time-format start-time))]
    (divider)
    (when (and (not-empty sub-nodes) (get-component-state state-conn id :show-children))
      (map render-node (repeat state-conn) sub-nodes (repeat (inc nesting-depth))))])
