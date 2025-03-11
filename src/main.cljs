@@ -19,6 +19,10 @@
 (declare determine-node-function)
 (declare render-node)
 
+(defn divider
+  []
+  [:> rn/View {:style {:background :black :width "100%" :height 2}}])
+
 (defn get-component-state
   ([conn entity-id]
    (ds/entity conn entity-id))
@@ -35,10 +39,13 @@
                                      :in $ ?e ?a
                                      :where [?e ?a ?v]]
                                      app-state entity-id attribute))]
-    (println current-value)
     (if (not (nil? current-value))
       [{:db/id entity-id attribute (not current-value)}]
       (println (str "No entity with id and attribute: " entity-id " " attribute)))))
+
+(defn node-style
+  [nesting-depth]
+  {:align-content :center :width "100%" :height 40 :margin-left (* 10 nesting-depth)})
 
 (defn text-node-component
   [state-conn
@@ -47,9 +54,10 @@
            text-value]}
    nesting-depth]
   [:> rn/Pressable {:key   (str (random-uuid))
-                    :style {:width "100%" :background :gray :margin-left (* 10 nesting-depth)}
+                    ;; :style (node-style nesting-depth)
                     :on-press #(ds/transact! state-conn [[:db.fn/call toggle-state id :show-children]])}
-   [:> rn/Text text-value]
+   [:> rn/Text {:style (node-style nesting-depth)} text-value]
+   (divider)
    (when (and (not-empty sub-nodes) (get-component-state state-conn id :show-children))
      (map render-node (repeat state-conn) sub-nodes (repeat (inc nesting-depth))))])
 
@@ -60,9 +68,11 @@
            start-time end-time
            on-time-start on-time-end]}
    nesting-depth]
-  [:> rn/View {:key   (str (random-uuid))
-               :style {:width "100%" :background :gray :margin-left (* 10 nesting-depth)}}
-   [:> rn/Text (str "Time Value: " start-time)]
+  [:> rn/Pressable {:key      (str (random-uuid))
+                    ;; :style (node-style nesting-depth)
+                    :on-press #(ds/transact! state-conn [[:db.fn/call toggle-state id :show-children]])}
+   [:> rn/Text {:style (node-style nesting-depth)} (str "Time Value: " start-time)]
+   (divider)
    (when (and (not-empty sub-nodes) (get-component-state state-conn id :show-children))
      (map render-node (repeat state-conn) sub-nodes (repeat (inc nesting-depth))))])
 
@@ -72,9 +82,11 @@
            primary-sub-node sub-nodes 
            task-value on-task-toggled]}
    nesting-depth]
-  [:> rn/View {:key   (str (random-uuid))
-               :style {:width "100%" :background :gray :margin-left (* 10 nesting-depth)}}
-   [:> rn/Text (str "Task Value: " task-value)]
+  [:> rn/Pressable {:key      (str (random-uuid))
+                    ;; :style (node-style nesting-depth)
+                    :on-press #(ds/transact! state-conn [[:db.fn/call toggle-state id :show-children]])}
+   [:> rn/Text {:style (node-style nesting-depth)} (str "Task Value: " task-value)]
+   (divider)
    (when (and (not-empty sub-nodes) (get-component-state state-conn id :show-children))
      (map render-node (repeat state-conn) sub-nodes (repeat (inc nesting-depth))))])
 
@@ -85,9 +97,11 @@
            tracker-value tracker-max-value
            on-tracker-increase on-tracker-decrease]}
    nesting-depth]
-  [:> rn/View {:key   (str (random-uuid))
-               :style {:width "100%" :background :gray :margin-left (* 10 nesting-depth)}}
-   [:> rn/Text (str "Tracker Value: " tracker-value)]
+  [:> rn/Pressable {:key      (str (random-uuid))
+                    ;; :style (node-style nesting-depth)
+                    :on-press #(ds/transact! state-conn [[:db.fn/call toggle-state id :show-children]])}
+   [:> rn/Text {:style (node-style nesting-depth)} (str "Tracker Value: " tracker-value)]
+   (divider)
    (when (and (not-empty sub-nodes) (get-component-state state-conn id :show-children))
      (map render-node (repeat state-conn) sub-nodes (repeat (inc nesting-depth))))])
 
@@ -110,17 +124,17 @@
   (let [ex-data (ffirst (ds/q '[:find (pull ?e [*])
                                 :where [?e :text-value "ProductiviT"]]
                               @db-conn))]
-    [:> rn/View
-     [:> rn/Text (:text-value ex-data)]
-     [:> rn/Text (str (:primary-sub-node ex-data))]
-     (doall (map raw-text-node (:sub-nodes ex-data)))
+    [:> rn/View {:style {:width "100%"}}
+     ;; [:> rn/Text (:text-value ex-data)]
+     ;; [:> rn/Text (str (:primary-sub-node ex-data))]
+     ;; (doall (map raw-text-node (:sub-nodes ex-data)))
      (render-node state-conn ex-data 0)]))
 
 (defn root [db-conn state-conn]
   (let [main-nav nil #_(when (not (nil?
   conn)) (navigation/get-main-nav-state conn))]
     (case main-nav
-      (r/as-element [:> rn/View
+      (r/as-element [:> rn/View {:style {:width "100%" :background :gray}}
                      (example-group-component db-conn state-conn)]))))
 
 (defn ^:dev/after-load render
