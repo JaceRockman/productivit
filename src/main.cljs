@@ -35,14 +35,14 @@
           @conn entity-id attribute))))
 
 (defn toggle-state
-  [app-state entity-id attribute]
+  [state-conn entity-id attribute]
   (let [[current-value] (first (ds/q '[:find ?v
                                      :in $ ?e ?a
                                      :where [?e ?a ?v]]
-                                     app-state entity-id attribute))]
+                                     state-conn entity-id attribute))]
     (if (not (nil? current-value))
       [{:db/id entity-id attribute (not current-value)}]
-      (println (str "No entity with id and attribute: " entity-id " " attribute)))))
+      [{:db/id entity-id attribute true}])))
 
 (defn node-style
   [nesting-depth]
@@ -90,10 +90,35 @@
   [:> rn/Pressable {:key      (str (random-uuid))
                     ;; :style (node-style nesting-depth)
                     :on-press #(ds/transact! state-conn [[:db.fn/call toggle-state id :show-children]])}
-   [:> rn/Text {:style (node-style nesting-depth)} (str "Task Value: " task-value)]
+   [:> rn/Switch {:style (node-style nesting-depth)
+                  :on-value-change #(ds/transact! state-conn [[:db.fn/call toggle-state id :task-value]])
+                  :value (:task-value (ds/entity @state-conn id))}]
    (divider)
    (when (and (not-empty sub-nodes) (get-component-state state-conn id :show-children))
      (map render-node (repeat state-conn) sub-nodes (repeat (inc nesting-depth))))])
+
+(defn inc-dec
+  [state-conn entity-id attribute function]
+  (let [{:keys [tracker-value tracker-max-value tracker-min-value]} (ds/entity state-conn entity-id)]
+    (if (not (nil? tracker-value))
+      (let [raw-new-value (function tracker-value)
+            new-value (cond
+                        (and tracker-max-value (< tracker-max-value raw-new-value)) tracker-max-value
+                        (and tracker-min-value (> tracker-min-value raw-new-value)) tracker-min-value
+                        :else raw-new-value)]
+        [{:db/id entity-id attribute new-value}])
+      [{:db/id entity-id attribute (function 0)}])))
+
+(defn inc-dec-tracker-component
+  [{:keys [state-conn tracker-id plus-or-minus inc-or-dec-amount]}]
+  (let [inc-or-dec-fn #(plus-or-minus % inc-or-dec-amount)]
+    [:> rn/Pressable {:style {:height 30 :width 30 :background :white :border-radius 2
+                              :align-items :center :justify-content :center}
+                      :on-press #(ds/transact! state-conn [[:db.fn/call inc-dec
+                                                            tracker-id
+                                                            :tracker-value
+                                                            inc-or-dec-fn]])}
+     [:> rn/Text (str (if (= plus-or-minus +) "+" "-") inc-or-dec-amount)]]))
 
 (defn tracker-node-component
   [state-conn
@@ -105,7 +130,12 @@
   [:> rn/Pressable {:key      (str (random-uuid))
                     ;; :style (node-style nesting-depth)
                     :on-press #(ds/transact! state-conn [[:db.fn/call toggle-state id :show-children]])}
-   [:> rn/Text {:style (node-style nesting-depth)} (str "Tracker Value: " tracker-value)]
+   [:> rn/View {:style (merge (node-style nesting-depth) {:flex-direction :row :gap 5 :align-items :center})}
+    (inc-dec-tracker-component {:state-conn app-db-conn :tracker-id id :plus-or-minus - :inc-or-dec-amount 5})
+    (inc-dec-tracker-component {:state-conn app-db-conn :tracker-id id :plus-or-minus - :inc-or-dec-amount 1})
+    [:> rn/Text {:style {:font-size 24}} (:tracker-value (ds/entity @app-db-conn id))]
+    (inc-dec-tracker-component {:state-conn app-db-conn :tracker-id id :plus-or-minus + :inc-or-dec-amount 1})
+    (inc-dec-tracker-component {:state-conn app-db-conn :tracker-id id :plus-or-minus + :inc-or-dec-amount 5})]
    (divider)
    (when (and (not-empty sub-nodes) (get-component-state state-conn id :show-children))
      (map render-node (repeat state-conn) sub-nodes (repeat (inc nesting-depth))))])
