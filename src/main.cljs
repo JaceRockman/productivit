@@ -1,12 +1,14 @@
 (ns main
   (:require
    [reagent.core :as r]
+   [reagent.ratom :as ratom]
    ["react-native" :as rn]
    [datascript.core :as ds]
    [expo.root :as expo-root]
    [init :as init]
    [data :as data]
-   [cljs-time.format :as t-format])
+   [cljs-time.format :as t-format]
+   ["react-native-reanimated" :as anim])
   (:require-macros
    [macros :refer [profile]]))
 
@@ -46,56 +48,81 @@
 
 (defn node-style
   [nesting-depth]
-  {:align-content :center :width "100%" :height 40 :margin-left (* 10 nesting-depth)})
+  {:align-content :center :width "100%" :height 40 :margin-left (* 15 nesting-depth)})
+
+(defn calculate-height [node-data]
+  ;; Calculate the height based on the number of sub-nodes
+  (if (not-empty (:sub-nodes node-data))
+    (* 40 (count (:sub-nodes node-data))) ;; Example: 40 pixels per sub-node
+    40)) ;; Default height if no sub-nodes
+
+(def animation-ref (r/atom {:height 0}))
+
+(defn animated-node [state-conn render-content node-data nesting-depth]
+  (let [entity-id (:db/id node-data)
+        is-expanded #(get-component-state state-conn entity-id :show-children)
+        initial-height (if (is-expanded) (calculate-height node-data) 0)
+        _            (reset! animation-ref initial-height)
+        toggle (fn []
+                 (ds/transact! state-conn [[:db.fn/call toggle-state entity-id :show-children]])
+                 (let [new-height (if (is-expanded)
+                                    (calculate-height node-data)
+                                    0)]
+                   ;; In a real implementation, we'd animate this value
+                   (reset! animation-ref {:height new-height})))]
+
+    [:> rn/View
+     [:> rn/Pressable {:on-press toggle}
+      (render-content state-conn node-data nesting-depth)]
+     (divider)
+     [:> rn/View {:style (clj->js (merge {:overflow "hidden"
+                                          :height (:height @animation-ref)}))}
+      ;; Render sub-nodes regardless of animation state
+      (when (and (not-empty (:sub-nodes node-data)) (is-expanded))
+        (doall (map render-node 
+                    (repeat state-conn) 
+                    (:sub-nodes node-data) 
+                    (repeat (inc nesting-depth)))))]]))
 
 (defn text-node-component
   [state-conn
-   {:keys [db/id
-           primary-sub-node sub-nodes
-           text-value]}
+   {:keys [db/id primary-sub-node sub-nodes text-value] :as node-data}
    nesting-depth]
-  [:> rn/Pressable {:key   (str (random-uuid))
-                    ;; :style (node-style nesting-depth)
-                    :on-press #(ds/transact! state-conn [[:db.fn/call toggle-state id :show-children]])}
-   [:> rn/Text {:style (node-style nesting-depth)} text-value]
-   (divider)
-   (when (and (not-empty sub-nodes) (get-component-state state-conn id :show-children))
-     (map render-node (repeat state-conn) sub-nodes (repeat (inc nesting-depth))))])
+  (animated-node
+    state-conn
+    (fn [state-conn node-data nesting-depth]
+      [:> rn/Text {:style (node-style nesting-depth)} (:text-value node-data)])
+    node-data nesting-depth))
 
 (def standard-time-format
   (t-format/formatter "MMM' 'dd', 'YYYY"))
 
 (defn time-node-component
   [state-conn
-   {:keys [:db/id
-           primary-sub-node sub-nodes 
-           start-time end-time
-           on-time-start on-time-end]}
+   {:keys [:db/id primary-sub-node sub-nodes start-time end-time on-time-start on-time-end] :as node-data}
    nesting-depth]
-  [:> rn/Pressable {:key      (str (random-uuid))
-                    ;; :style (node-style nesting-depth)
-                    :on-press #(ds/transact! state-conn [[:db.fn/call toggle-state id :show-children]])}
-   [:> rn/Text {:style (node-style nesting-depth)} (str "Time Value: "
-                                                        (t-format/unparse standard-time-format start-time))]
-   (divider)
-   (when (and (not-empty sub-nodes) (get-component-state state-conn id :show-children))
-     (map render-node (repeat state-conn) sub-nodes (repeat (inc nesting-depth))))])
+  (animated-node
+    state-conn
+    (fn [state-conn node-data nesting-depth]
+      [:> rn/Text {:style (node-style nesting-depth)} (str "Time Value: "
+                                                          (t-format/unparse standard-time-format (:start-time node-data)))])
+    node-data nesting-depth))
 
 (defn task-node-component
   [state-conn
-   {:keys [:db/id
-           primary-sub-node sub-nodes 
-           task-value on-task-toggled]}
+   {:keys [:db/id primary-sub-node sub-nodes task-value on-task-toggled] :as node-data}
    nesting-depth]
-  [:> rn/Pressable {:key      (str (random-uuid))
-                    ;; :style (node-style nesting-depth)
-                    :on-press #(ds/transact! state-conn [[:db.fn/call toggle-state id :show-children]])}
-   [:> rn/Switch {:style (node-style nesting-depth)
-                  :on-value-change #(ds/transact! state-conn [[:db.fn/call toggle-state id :task-value]])
-                  :value (:task-value (ds/entity @state-conn id))}]
-   (divider)
-   (when (and (not-empty sub-nodes) (get-component-state state-conn id :show-children))
-     (map render-node (repeat state-conn) sub-nodes (repeat (inc nesting-depth))))])
+  (animated-node
+    state-conn
+    (fn [state-conn node-data nesting-depth]
+      [:> rn/Switch {:style (merge (node-style nesting-depth) 
+                                    {:transform [{:scale 0.8}]})
+                     :on-value-change #(ds/transact! state-conn [[:db.fn/call toggle-state (:db/id node-data) :task-value]])
+                     :value (:task-value (ds/entity @state-conn (:db/id node-data)))
+                     :trackColor {:false "#ffcccc"
+                                  :true  "#ccffcc"}
+                     :thumbColor (if (:task-value (ds/entity @state-conn (:db/id node-data))) "#66ff66" "#ff6666")}])
+    node-data nesting-depth))
 
 (defn inc-dec
   [state-conn entity-id attribute function]
@@ -125,20 +152,19 @@
    {:keys [:db/id
            primary-sub-node sub-nodes
            tracker-value tracker-max-value
-           on-tracker-increase on-tracker-decrease]}
+           on-tracker-increase on-tracker-decrease] :as node-data}
    nesting-depth]
-  [:> rn/Pressable {:key      (str (random-uuid))
-                    ;; :style (node-style nesting-depth)
-                    :on-press #(ds/transact! state-conn [[:db.fn/call toggle-state id :show-children]])}
-   [:> rn/View {:style (merge (node-style nesting-depth) {:flex-direction :row :gap 5 :align-items :center})}
-    (inc-dec-tracker-component {:state-conn app-db-conn :tracker-id id :plus-or-minus - :inc-or-dec-amount 5})
-    (inc-dec-tracker-component {:state-conn app-db-conn :tracker-id id :plus-or-minus - :inc-or-dec-amount 1})
-    [:> rn/Text {:style {:font-size 24}} (:tracker-value (ds/entity @app-db-conn id))]
-    (inc-dec-tracker-component {:state-conn app-db-conn :tracker-id id :plus-or-minus + :inc-or-dec-amount 1})
-    (inc-dec-tracker-component {:state-conn app-db-conn :tracker-id id :plus-or-minus + :inc-or-dec-amount 5})]
-   (divider)
-   (when (and (not-empty sub-nodes) (get-component-state state-conn id :show-children))
-     (map render-node (repeat state-conn) sub-nodes (repeat (inc nesting-depth))))])
+  [:> rn/View
+    (animated-node
+      state-conn
+      (fn [state-conn node-data nesting-depth]
+        [:> rn/View {:style (merge (node-style nesting-depth) {:flex-direction :row :gap 5 :align-items :center})}
+        (inc-dec-tracker-component {:state-conn app-db-conn :tracker-id (:db/id node-data) :plus-or-minus - :inc-or-dec-amount 5})
+        (inc-dec-tracker-component {:state-conn app-db-conn :tracker-id (:db/id node-data) :plus-or-minus - :inc-or-dec-amount 1})
+       [:> rn/Text {:style {:font-size 24}} (:tracker-value (ds/entity @app-db-conn (:db/id node-data)))]
+       (inc-dec-tracker-component {:state-conn app-db-conn :tracker-id (:db/id node-data) :plus-or-minus + :inc-or-dec-amount 1})
+       (inc-dec-tracker-component {:state-conn app-db-conn :tracker-id (:db/id node-data) :plus-or-minus + :inc-or-dec-amount 5})])
+    node-data nesting-depth)])
 
 (defn determine-node-function
   [{:keys [text-value start-time task-value tracker-value] :as node}]
