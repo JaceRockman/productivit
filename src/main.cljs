@@ -1,14 +1,14 @@
 (ns main
   (:require
+   [clojure.math :as math]
    [reagent.core :as r]
-   [reagent.ratom :as ratom]
    ["react-native" :as rn]
    [datascript.core :as ds]
    [expo.root :as expo-root]
    [init :as init]
    [data :as data]
    [cljs-time.format :as t-format]
-   ["react-native-reanimated" :as anim])
+   [cljs-time.core :as t])
   (:require-macros
    [macros :refer [profile]]))
 
@@ -51,34 +51,81 @@
   {:align-content :center :width "100%" :height 40 :margin-left (* 15 nesting-depth)})
 
 (defn calculate-height [node-data]
-  ;; Calculate the height based on the number of sub-nodes
-  (if (not-empty (:sub-nodes node-data))
-    (* 40 (count (:sub-nodes node-data))) ;; Example: 40 pixels per sub-node
-    40)) ;; Default height if no sub-nodes
+  (letfn [(count-subnodes [sub-nodes]
+             (reduce + (map #(if (:sub-nodes %) (+ 1 (count-subnodes (:sub-nodes %))) 1) sub-nodes)))]
+    (if (not-empty (:sub-nodes node-data))
+      (* 40 (count-subnodes (:sub-nodes node-data)))
+      0)))
 
-(def animation-ref (r/atom {:height 0}))
+(def animated-height-atom (r/atom nil))
+(def component-state-map (r/atom {}))
 
-(defn animated-node [state-conn render-content node-data nesting-depth]
-  (let [entity-id (:db/id node-data)
-        is-expanded #(get-component-state state-conn entity-id :show-children)
-        initial-height (if (is-expanded) (calculate-height node-data) 0)
-        _            (reset! animation-ref initial-height)
+(defn new-animated-node
+  [state-conn render-content node-data nesting-depth]
+  (let [;; Create component-local state
+        component-state (swap! component-state-map
+                               (fn [state]
+                                 (merge state
+                                        {(:db/id node-data) {:height-val nil
+                                                             :is-expanded nil}})))
+        
+        ;; Initialize once on first render
+        _ (when (nil? (get-in @component-state-map [(:db/id node-data) :height-val]))
+            (let [entity-id (:db/id node-data)
+                  is-expanded (get-component-state state-conn entity-id :show-children)
+                  initial-height (if is-expanded (calculate-height node-data) 0)]
+              
+              (swap! component-state-map assoc 
+                    (:db/id node-data) {:height-val (new (.-Value rn/Animated) initial-height)
+                                        :is-expanded is-expanded})))
+        
+        ;; Get animated value from state
+        animated-height (:height-val (get-in @component-state-map [(:db/id node-data)]))
+        
+        ;; Add a value listener to track height changes
+        _ (when animated-height
+            (let [listener-id (.addListener animated-height 
+                                          (fn [state]
+                                            (println "Animation tick - Current height:" (.-value state))))]
+              ;; Store listener ID for cleanup if needed
+              (swap! component-state-map assoc 
+                    (:db/id node-data) {:listener-id listener-id})))
+        
+        ;; Toggle function
         toggle (fn []
-                 (ds/transact! state-conn [[:db.fn/call toggle-state entity-id :show-children]])
-                 (let [new-height (if (is-expanded)
-                                    (calculate-height node-data)
-                                    0)]
-                   ;; In a real implementation, we'd animate this value
-                   (reset! animation-ref {:height new-height})))]
-
+                (let [entity-id (:db/id node-data)
+                      ;; Toggle DB state
+                      _ (ds/transact! state-conn [[:db.fn/call toggle-state entity-id :show-children]])
+                      ;; Get new state
+                      new-expanded (get-component-state state-conn entity-id :show-children)
+                      to-value (if new-expanded
+                                 (calculate-height node-data)
+                                 0)]
+                  
+                  ;; Update component local state
+                  (swap! component-state-map assoc 
+                    (:db/id node-data) {:is-expanded new-expanded})
+                  
+                  (println "Starting animation from" (.-value animated-height) "to" to-value "over 300ms")
+                  
+                  ;; Direct JavaScript interop approach
+                  (let [animation (.timing rn/Animated 
+                                          animated-height 
+                                          #js {:toValue to-value
+                                              :duration 300
+                                              :useNativeDriver false})]
+                    (.start animation (fn [finished]
+                                        (println "Animation finished:" finished))))))]
+    
     [:> rn/View
      [:> rn/Pressable {:on-press toggle}
       (render-content state-conn node-data nesting-depth)]
      (divider)
-     [:> rn/View {:style (clj->js (merge {:overflow "hidden"
-                                          :height (:height @animation-ref)}))}
-      ;; Render sub-nodes regardless of animation state
-      (when (and (not-empty (:sub-nodes node-data)) (is-expanded))
+     [:> rn/Animated.View 
+      {:style {:overflow "hidden"
+               :height animated-height}}
+      ;; Always render sub-nodes, but they'll be hidden when height is 0
+      (when (not-empty (:sub-nodes node-data))
         (doall (map render-node 
                     (repeat state-conn) 
                     (:sub-nodes node-data) 
@@ -88,10 +135,10 @@
   [state-conn
    {:keys [db/id primary-sub-node sub-nodes text-value] :as node-data}
    nesting-depth]
-  (animated-node
+  (new-animated-node
     state-conn
     (fn [state-conn node-data nesting-depth]
-      [:> rn/Text {:style (node-style nesting-depth)} (:text-value node-data)])
+      [:> rn/Text {:key id :style (node-style nesting-depth)} (:text-value node-data)])
     node-data nesting-depth))
 
 (def standard-time-format
@@ -101,10 +148,10 @@
   [state-conn
    {:keys [:db/id primary-sub-node sub-nodes start-time end-time on-time-start on-time-end] :as node-data}
    nesting-depth]
-  (animated-node
+  (new-animated-node
     state-conn
     (fn [state-conn node-data nesting-depth]
-      [:> rn/Text {:style (node-style nesting-depth)} (str "Time Value: "
+      [:> rn/Text {:key id :style (node-style nesting-depth)} (str "Time Value: "
                                                           (t-format/unparse standard-time-format (:start-time node-data)))])
     node-data nesting-depth))
 
@@ -112,10 +159,11 @@
   [state-conn
    {:keys [:db/id primary-sub-node sub-nodes task-value on-task-toggled] :as node-data}
    nesting-depth]
-  (animated-node
+  (new-animated-node
     state-conn
     (fn [state-conn node-data nesting-depth]
-      [:> rn/Switch {:style (merge (node-style nesting-depth) 
+      [:> rn/Switch {:key id
+                     :style (merge (node-style nesting-depth) 
                                     {:transform [{:scale 0.8}]})
                      :on-value-change #(ds/transact! state-conn [[:db.fn/call toggle-state (:db/id node-data) :task-value]])
                      :value (:task-value (ds/entity @state-conn (:db/id node-data)))
@@ -154,17 +202,16 @@
            tracker-value tracker-max-value
            on-tracker-increase on-tracker-decrease] :as node-data}
    nesting-depth]
-  [:> rn/View
-    (animated-node
+    (new-animated-node
       state-conn
       (fn [state-conn node-data nesting-depth]
-        [:> rn/View {:style (merge (node-style nesting-depth) {:flex-direction :row :gap 5 :align-items :center})}
+        [:> rn/View {:key (:db/id node-data) :style (merge (node-style nesting-depth) {:flex-direction :row :gap 5 :align-items :center})}
         (inc-dec-tracker-component {:state-conn app-db-conn :tracker-id (:db/id node-data) :plus-or-minus - :inc-or-dec-amount 5})
         (inc-dec-tracker-component {:state-conn app-db-conn :tracker-id (:db/id node-data) :plus-or-minus - :inc-or-dec-amount 1})
        [:> rn/Text {:style {:font-size 24}} (:tracker-value (ds/entity @app-db-conn (:db/id node-data)))]
        (inc-dec-tracker-component {:state-conn app-db-conn :tracker-id (:db/id node-data) :plus-or-minus + :inc-or-dec-amount 1})
        (inc-dec-tracker-component {:state-conn app-db-conn :tracker-id (:db/id node-data) :plus-or-minus + :inc-or-dec-amount 5})])
-    node-data nesting-depth)])
+    node-data nesting-depth))
 
 (defn determine-node-function
   [{:keys [text-value start-time task-value tracker-value] :as node}]
