@@ -58,59 +58,50 @@
       0)))
 
 (def animated-height-atom (r/atom nil))
-(def component-state-map (r/atom {}))
+
+(defn test-animated-node
+  [state-conn node-data nesting-depth]
+  [:> rn/View
+   [:> rn/Pressable {:on-press #(println "Pressed")}
+    [:> rn/Text "Test"]]])
+
+(def component-state (r/atom {:height-val nil
+                              :is-expanded nil}))
 
 (defn new-animated-node
   [state-conn render-content node-data nesting-depth]
   (let [;; Create component-local state
-        component-state (swap! component-state-map
-                               (fn [state]
-                                 (merge state
-                                        {(:db/id node-data) {:height-val nil
-                                                             :is-expanded nil}})))
+        entity-id (:db/id node-data)
+
+        get-height-val (fn []
+                         (get-component-state state-conn entity-id :height-val))
         
+        update-height-val (fn [new-height]
+                            (ds/transact! state-conn [{:db/id entity-id :height-val new-height}]))
+        
+        update-component-state (fn [state-conn entity-id attribute value]
+                                 (ds/transact! state-conn [{:db/id entity-id attribute value}]))
+
         ;; Initialize once on first render
-        _ (when (nil? (get-in @component-state-map [(:db/id node-data) :height-val]))
-            (let [entity-id (:db/id node-data)
-                  is-expanded (get-component-state state-conn entity-id :show-children)
+        _ (when (nil? (get-height-val))
+            (let [is-expanded (get-component-state state-conn entity-id :show-children)
                   initial-height (if is-expanded (calculate-height node-data) 0)]
-              
-              (swap! component-state-map assoc 
-                    (:db/id node-data) {:height-val (new (.-Value rn/Animated) initial-height)
-                                        :is-expanded is-expanded})))
-        
-        ;; Get animated value from state
-        animated-height (:height-val (get-in @component-state-map [(:db/id node-data)]))
-        
-        ;; Add a value listener to track height changes
-        _ (when animated-height
-            (let [listener-id (.addListener animated-height 
-                                          (fn [state]
-                                            (println "Animation tick - Current height:" (.-value state))))]
-              ;; Store listener ID for cleanup if needed
-              (swap! component-state-map assoc 
-                    (:db/id node-data) {:listener-id listener-id})))
+
+              (update-height-val (new (.-Value rn/Animated) initial-height))))
         
         ;; Toggle function
         toggle (fn []
-                (let [entity-id (:db/id node-data)
-                      ;; Toggle DB state
-                      _ (ds/transact! state-conn [[:db.fn/call toggle-state entity-id :show-children]])
-                      ;; Get new state
-                      new-expanded (get-component-state state-conn entity-id :show-children)
+                (let [new-expanded (not (get-component-state state-conn entity-id :show-children))
+                      _ (update-component-state state-conn entity-id :show-children new-expanded)
                       to-value (if new-expanded
                                  (calculate-height node-data)
                                  0)]
-                  
-                  ;; Update component local state
-                  (swap! component-state-map assoc 
-                    (:db/id node-data) {:is-expanded new-expanded})
-                  
-                  (println "Starting animation from" (.-value animated-height) "to" to-value "over 300ms")
+                                    
+                  (println "Starting animation from" (.-value (get-height-val)) "to" to-value "over 300ms")
                   
                   ;; Direct JavaScript interop approach
                   (let [animation (.timing rn/Animated 
-                                          animated-height 
+                                          (get-height-val) 
                                           #js {:toValue to-value
                                               :duration 300
                                               :useNativeDriver false})]
@@ -123,7 +114,7 @@
      (divider)
      [:> rn/Animated.View 
       {:style {:overflow "hidden"
-               :height animated-height}}
+               :height (get-height-val)}}
       ;; Always render sub-nodes, but they'll be hidden when height is 0
       (when (not-empty (:sub-nodes node-data))
         (doall (map render-node 
