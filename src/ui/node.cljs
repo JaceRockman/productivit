@@ -1,6 +1,7 @@
 (ns ui.node
     (:require ["react-native" :as rn]
-              [datascript.core :as ds]))
+              [datascript.core :as ds]
+              ["@expo/vector-icons" :refer [FontAwesome5]]))
 
 (defn node-style
   [nesting-depth]
@@ -69,9 +70,13 @@
 
 (defn ActionMenu [node-data]
   [:> rn/View 
-    [:> rn/View {:style {:background-color :white :flex-direction :row}}
-        [:> rn/Button {:title "Option 1" :on-press #(println "Option 1 selected")}]
-        [:> rn/Button {:title "Option 2" :on-press #(println "Option 2 selected")}]]
+    [:> rn/View {:style {:background-color :white :flex-direction :row :height 40 :gap 20 :justify-content :center :align-items :center}}
+        [:> rn/Pressable {:on-press #(println "Duplicated")}
+            [:> FontAwesome5 {:name "copy" :size 20 :color :black}]]
+        [:> rn/Pressable {:on-press #(println "Edited")}
+            [:> FontAwesome5 {:name "edit" :size 20 :color :black}]]
+        [:> rn/Pressable {:on-press #(println "Deleted")}
+            [:> FontAwesome5 {:name "trash" :size 20 :color :black}]]]
    (divider)])
 
 (defn toggle-menu
