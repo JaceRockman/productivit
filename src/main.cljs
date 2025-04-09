@@ -68,19 +68,18 @@
 (def component-state (r/atom {:height-val nil
                               :is-expanded nil}))
 
-(defn new-animated-node
+(defn animated-node
   [state-conn render-content node-data nesting-depth]
-  (let [;; Create component-local state
-        entity-id (:db/id node-data)
-
+  (let [entity-id (:db/id node-data)
         get-height-val (fn []
                          (get-component-state state-conn entity-id :height-val))
-        
         update-height-val (fn [new-height]
                             (ds/transact! state-conn [{:db/id entity-id :height-val new-height}]))
-        
         update-component-state (fn [state-conn entity-id attribute value]
                                  (ds/transact! state-conn [{:db/id entity-id attribute value}]))
+
+        _ (when (nil? (get-component-state state-conn entity-id :show-children))
+            (update-component-state state-conn entity-id :show-children true))
 
         ;; Initialize once on first render
         _ (when (nil? (get-height-val))
@@ -126,7 +125,7 @@
   [state-conn
    {:keys [db/id primary-sub-node sub-nodes text-value] :as node-data}
    nesting-depth]
-  (new-animated-node
+  (animated-node
     state-conn
     (fn [state-conn node-data nesting-depth]
       [:> rn/Text {:key id :style (node-style nesting-depth)} (:text-value node-data)])
@@ -139,7 +138,7 @@
   [state-conn
    {:keys [:db/id primary-sub-node sub-nodes start-time end-time on-time-start on-time-end] :as node-data}
    nesting-depth]
-  (new-animated-node
+  (animated-node
     state-conn
     (fn [state-conn node-data nesting-depth]
       [:> rn/Text {:key id :style (node-style nesting-depth)} (str "Time Value: "
@@ -150,7 +149,7 @@
   [state-conn
    {:keys [:db/id primary-sub-node sub-nodes task-value on-task-toggled] :as node-data}
    nesting-depth]
-  (new-animated-node
+   (animated-node
     state-conn
     (fn [state-conn node-data nesting-depth]
       [:> rn/Switch {:key id
@@ -193,7 +192,7 @@
            tracker-value tracker-max-value
            on-tracker-increase on-tracker-decrease] :as node-data}
    nesting-depth]
-    (new-animated-node
+    (animated-node
       state-conn
       (fn [state-conn node-data nesting-depth]
         [:> rn/View {:key (:db/id node-data) :style (merge (node-style nesting-depth) {:flex-direction :row :gap 5 :align-items :center})}
