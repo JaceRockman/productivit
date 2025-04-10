@@ -62,70 +62,97 @@
 
 
 (def example-group
-  [{:db/id            "group"
+  [#_{:db/id            "top-level-solo"
+    :entity-type      "node"
+    :text-value       "I'm top level"
+    :sub-nodes        []}
+   {:db/id            "group"
+    :entity-type      "node"
     :text-value       "ProductiviT"
     :primary-sub-node "progress-tracker"
     :sub-nodes        ["progress-tracker" "time-example" "text-ui" "time-ui" "task-ui" "tracker-ui"]}
    {:db/id             "progress-tracker"
+    :entity-type      "node"
     :tracker-value     0
     :tracker-max-value 4}
    {:db/id            "text-ui"
+    :entity-type      "node"
     :text-value       "Text UI"
     :primary-sub-node "text-progress-tracker"
     :sub-nodes        ["text-progress-tracker" "text-task-1" "text-task-2" "text-task-3"]}
    {:db/id             "text-progress-tracker"
+    :entity-type      "node"
     :tracker-value     0
     :tracker-max-value 3}
    {:db/id      "text-task-1"
+    :entity-type      "node"
     :task-value false}
    {:db/id      "text-task-2"
+    :entity-type      "node"
     :task-value false}
    {:db/id      "text-task-3"
+    :entity-type      "node"
     :task-value false}
    {:db/id "time-example"
+    :entity-type      "node"
     :start-time       (t/now)
     :end-time         (t/plus (t/now) (t/minutes 1))}
 
    {:db/id            "time-ui"
+    :entity-type      "node"
     :text-value       "Time UI"
     :primary-sub-node "time-progress-tracker"
     :sub-nodes        ["time-progress-tracker" "time-task-1" "time-task-2" "time-task-3"]}
    {:db/id             "time-progress-tracker"
+    :entity-type      "node"
     :tracker-value     0
     :tracker-max-value 3}
    {:db/id      "time-task-1"
+    :entity-type      "node"
     :task-value false}
    {:db/id      "time-task-2"
+    :entity-type      "node"
     :task-value false}
    {:db/id      "time-task-3"
+    :entity-type      "node"
     :task-value false}
 
    {:db/id            "task-ui"
+    :entity-type      "node"
     :text-value       "Task UI"
     :primary-sub-node "task-progress-tracker"
     :sub-nodes        ["task-progress-tracker" "task-task-1" "task-task-2" "task-task-3"]}
    {:db/id             "task-progress-tracker"
+    :entity-type      "node"
     :tracker-value     0
     :tracker-max-value 3}
    {:db/id      "task-task-1"
+    :entity-type      "node"
     :task-value false}
    {:db/id      "task-task-2"
+    :entity-type      "node"
     :task-value false}
    {:db/id      "task-task-3"
+    :entity-type      "node"
     :task-value false}
 
    {:db/id            "tracker-ui"
+    :entity-type      "node"
     :text-value       "Tracker UI"
     :primary-sub-node "tracker-progress-tracker"
     :sub-nodes        ["tracker-progress-tracker" "tracker-task-1" "tracker-task-2" "tracker-task-3"]}
    {:db/id             "tracker-progress-tracker"
+    :entity-type      "node"
     :tracker-value     0
     :tracker-max-value 3}
    {:db/id      "tracker-task-1"
+    :entity-type      "node"
     :task-value false}
    {:db/id      "tracker-task-2"
+    :entity-type      "node"
     :task-value false}
    {:db/id      "tracker-task-3"
+    :entity-type      "node"
     :task-value false}])
 
 (def example-group-state

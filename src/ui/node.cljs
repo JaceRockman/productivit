@@ -76,7 +76,9 @@
         [:> rn/Pressable {:on-press #(println "Edited")}
             [:> FontAwesome5 {:name "edit" :size 20 :color :black}]]
         [:> rn/Pressable {:on-press #(println "Deleted")}
-            [:> FontAwesome5 {:name "trash" :size 20 :color :black}]]]
+            [:> FontAwesome5 {:name "trash" :size 20 :color :black}]]
+        [:> rn/Pressable {:on-press #(println "Created Subnode")}
+            [:> FontAwesome5 {:name "plus" :size 20 :color :black}]]]
    (divider)])
 
 (defn toggle-menu
@@ -86,19 +88,33 @@
           new-show-menu (not (get-component-state state-conn entity-id :show-menu))]
       (ds/transact! state-conn [{:db/id entity-id :show-menu new-show-menu}]))))
 
-(defn animated-node
-  [state-conn db-conn render-content node-data nesting-depth child-nodes]
-  (let [entity-id (:db/id node-data)
-        
-        _ (when (nil? (get-component-state state-conn entity-id :show-children))
-            (update-component-state state-conn entity-id :show-children true))
+(defn create-node-button
+  [state-conn db-conn]
+  [:> rn/Pressable {:style {:align-items :center
+                            :justify-content :center
+                            :height "5vh"
+                            :width "100%"}
+                    :on-press #(println "Create New Top Level Node")}
+   [:> FontAwesome5 {:name "plus" :size 20 :color :black}]])
 
-        ;; Initialize once on first render
-        _ (when (nil? (get-height-val state-conn entity-id))
+(defn initialize-node-state
+  [state-conn node-data]
+  (let [entity-id (:db/id node-data)
+        is-expanded (get-component-state state-conn entity-id :show-children)
+        initial-height (if is-expanded (calculate-height node-data) 0)]
+    (when (nil? (get-component-state state-conn entity-id :show-children))
+        (update-component-state state-conn entity-id :show-children true))
+
+    (when (nil? (get-height-val state-conn entity-id))
             (let [is-expanded (get-component-state state-conn entity-id :show-children)
                   initial-height (if is-expanded (calculate-height node-data) 0)]
 
-              (update-height-val state-conn entity-id (new (.-Value rn/Animated) initial-height))))]
+              (update-height-val state-conn entity-id (new (.-Value rn/Animated) initial-height))))))
+
+(defn animated-node
+  [state-conn db-conn render-content node-data nesting-depth child-nodes]
+  (let [entity-id (:db/id node-data)
+        _ (initialize-node-state state-conn node-data)]
     
     [:> rn/View
      [:> rn/Pressable {:on-press (toggle state-conn node-data)
