@@ -66,11 +66,15 @@
     :entity-type      "node"
     :text-value       "I'm top level"
     :sub-nodes        ["text-ui"]}
+   {:db/id            "not-top-level-solo"
+    :entity-type      "node"
+    :text-value       "I'm not top level"
+    :sub-nodes        ["text-ui"]}
    {:db/id            "group"
     :entity-type      "node"
     :text-value       "ProductiviT"
     :primary-sub-node "progress-tracker"
-    :sub-nodes        ["progress-tracker" "time-example" "text-ui" "time-ui" "task-ui" "tracker-ui"]}
+    :sub-nodes        ["not-top-level-solo" "progress-tracker" "time-example" "text-ui" "time-ui" "task-ui" "tracker-ui"]}
    {:db/id             "progress-tracker"
     :entity-type      "node"
     :tracker-value     0

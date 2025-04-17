@@ -43,7 +43,10 @@
   [db-conn state-conn]
   (let [data (ds/pull-many @db-conn '[*] (queries/find-top-level-node-ids db-conn))
         ;; Might use this in the future to determine the view height so the + button stays with the content
-        displayed-nodes (queries/calculate-displayed-nodes app-db-conn app-state-conn)]
+        displayed-nodes (queries/recursively-get-displayed-sub-node-ids
+                          app-db-conn
+                          app-state-conn
+                          (queries/find-top-level-node-ids db-conn))]
     [:> rn/View {:style {:height "100vh" :width "100vh" :background :gray :flex 1}}
      [:> rn/ScrollView {:style {:flex 1 :max-height "95vh"}}
       (map #(render-node state-conn db-conn % 0) data)]

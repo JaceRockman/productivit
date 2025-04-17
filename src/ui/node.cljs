@@ -32,18 +32,23 @@
       [{:db/id entity-id attribute (not current-value)}]
       [{:db/id entity-id attribute true}])))
 
-(defn calculate-height [node-data]
+(defn calculate-height
+  [node-data state-conn]
   (letfn [(count-subnodes [sub-nodes]
-             (reduce + (map #(if (:sub-nodes %) (+ 1 (count-subnodes (:sub-nodes %))) 1) sub-nodes)))]
+            (reduce + (map #(if (and (:sub-nodes %) (get-component-state state-conn (:db/id %) :show-children))
+                                (inc (count-subnodes (:sub-nodes %)))
+                                1)
+                            sub-nodes)))]
+    (println "count-subnodes" (count-subnodes (:sub-nodes node-data)))
     (if (not-empty (:sub-nodes node-data))
-      (* 42 (count-subnodes (:sub-nodes node-data)))
-      0)))
+      (+ 42 (* 42 (count-subnodes (:sub-nodes node-data))))
+      42)))
 
-(defn get-height-val
+(defn get-height-atom
   [state-conn entity-id]
   (get-component-state state-conn entity-id :height-val))
 
-(defn update-height-val
+(defn update-height-atom
   [state-conn entity-id new-height]
   (ds/transact! state-conn [{:db/id entity-id :height-val new-height}]))
 
@@ -51,23 +56,37 @@
   [state-conn entity-id attribute value]
   (ds/transact! state-conn [{:db/id entity-id attribute value}]))
 
+(defn update-parent-height-atom
+  [db-conn state-conn entity-id]
+  (let [to-value (* 42 (count (queries/recursively-get-displayed-sub-node-ids db-conn state-conn entity-id)))
+        animation (.timing rn/Animated
+                    (get-height-atom state-conn entity-id) 
+                    #js {:toValue to-value
+                         :duration 300
+                         :useNativeDriver true})]
+        (.start animation (fn [finished]
+                              (println "Animation finished:" finished)))))
+
 (defn toggle 
-    [state-conn node-data]
+    [db-conn state-conn node-data]
     (fn []
         (let [entity-id (:db/id node-data)
               new-expanded (not (get-component-state state-conn entity-id :show-children))
               _ (update-component-state state-conn entity-id :show-children new-expanded)
               to-value (if new-expanded
-                        (calculate-height node-data)
-                        0)]
-                  
-                  (let [animation (.timing rn/Animated 
-                                          (get-height-val state-conn entity-id) 
-                                          #js {:toValue to-value
-                                              :duration 300
-                                              :useNativeDriver false})]
-                    (.start animation (fn [finished]
-                                        (println "Animation finished:" finished)))))))
+                        (calculate-height node-data state-conn)
+                        42)
+              animation (.timing rn/Animated 
+                          (get-height-atom state-conn entity-id) 
+                          #js {:toValue to-value
+                               :duration 300
+                               :useNativeDriver true})]
+
+             (doall (for [parent-node (queries/get-parent-nodes db-conn entity-id)]
+                         (update-parent-height-atom db-conn state-conn parent-node)))
+             
+             (.start animation (fn [finished]
+                                   (println "Animation finished:" finished))))))
 
 (defn duplicate-node 
   [db-conn node-data]
@@ -75,8 +94,6 @@
         new-entity-id (ds/tempid :db/id)
         new-entity-data (assoc node-data :db/id new-entity-id)
         parent-nodes (queries/get-parent-nodes db-conn entity-id)]
-        (println "parent-nodes" parent-nodes)
-    (println "new-entity-data" new-entity-data)
     (ds/transact! db-conn [new-entity-data])))
 
 (defn ActionMenu
@@ -111,32 +128,28 @@
 
 (defn initialize-node-state
   [state-conn node-data]
-  (let [entity-id (:db/id node-data)
-        is-expanded (get-component-state state-conn entity-id :show-children)
-        initial-height (if is-expanded (calculate-height node-data) 0)]
+  (let [entity-id (:db/id node-data)]
     (when (nil? (get-component-state state-conn entity-id :show-children))
-        (update-component-state state-conn entity-id :show-children true))
+          (update-component-state state-conn entity-id :show-children true))
 
-    (when (nil? (get-height-val state-conn entity-id))
-            (let [is-expanded (get-component-state state-conn entity-id :show-children)
-                  initial-height (if is-expanded (calculate-height node-data) 0)]
+  (when (nil? (get-height-atom state-conn entity-id))
+        (let [is-expanded (get-component-state state-conn entity-id :show-children)
+              initial-height (if is-expanded (calculate-height node-data state-conn) 0)]
 
-              (update-height-val state-conn entity-id (new (.-Value rn/Animated) initial-height))))))
+             (update-height-atom state-conn entity-id (new (.-Value rn/Animated) initial-height))))))
 
 (defn default-node
   [state-conn db-conn render-content node-data nesting-depth child-nodes]
   (let [entity-id (:db/id node-data)
         _ (initialize-node-state state-conn node-data)]
     
-    [:> rn/View
-     [:> rn/Pressable {:on-press (toggle state-conn node-data)
-                      :on-long-press (toggle-menu state-conn db-conn node-data)}
+    [:> rn/Animated.View
+     {:style {:overflow "hidden"
+              :height (get-height-atom state-conn entity-id)}}
+     [:> rn/Pressable {:on-press (toggle db-conn state-conn node-data)
+                       :on-long-press (toggle-menu state-conn db-conn node-data)}
       (render-content db-conn state-conn node-data nesting-depth)]
      (divider)
      (when (get-component-state state-conn entity-id :show-menu)
        (ActionMenu db-conn node-data))
-     [:> rn/Animated.View 
-      {:style {:overflow "hidden"
-               :height (get-height-val state-conn entity-id)}}
-      ;; Always render sub-nodes, but they'll be hidden when height is 0
-      child-nodes]]))
+     child-nodes]))

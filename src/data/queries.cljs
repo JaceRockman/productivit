@@ -21,9 +21,9 @@
      (get-children db-conn node)
      []))
 
-(defn calculate-displayed-nodes
-  [db-conn state-conn]
-  (loop [displayed-nodes (find-top-level-node-ids db-conn)
+(defn recursively-get-displayed-sub-node-ids
+  [db-conn state-conn node-ids]
+  (loop [displayed-nodes (if (seq? node-ids) node-ids [node-ids])
          next-children (flatten (map #(get-shown-children db-conn state-conn %) displayed-nodes))]
          (if (empty? next-children)
          displayed-nodes
@@ -33,7 +33,8 @@
 
 (defn get-parent-nodes
   [db-conn node]
-  (println (ds/pull @db-conn '[[:_sub-nodes :as :parents]] node))
-  (-> (ds/pull @db-conn '[[:_sub-nodes :as :parents]] node)
-      :parents
-      (->> (map :db/id))))
+  (map first (ds/q '[:find ?p
+                     :in $ ?c
+                     :where [?p :sub-nodes ?c]]
+                    @db-conn
+                    node)))
