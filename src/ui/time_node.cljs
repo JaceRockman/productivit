@@ -6,16 +6,8 @@
 (def standard-time-format
   (t-format/formatter "MMM' 'dd', 'YYYY"))
 
-(defn time-node-component
-  [state-conn
-   db-conn
-   {:keys [:db/id primary-sub-node sub-nodes start-time end-time on-time-start on-time-end] :as node-data}
-   nesting-depth
-   child-nodes]
-  (node/animated-node
-    state-conn
-    db-conn
-    (fn [state-conn node-data nesting-depth]
-      [:> rn/Text {:key id :style (node/node-style nesting-depth)} (str "Time Value: "
-                                                          (t-format/unparse standard-time-format (:start-time node-data)))])
-    node-data nesting-depth child-nodes))
+(defn time-node-content
+  [_ _ {:keys [:db/id primary-sub-node sub-nodes start-time end-time on-time-start on-time-end] :as node-data} nesting-depth]
+      [:> rn/Text {:key id :style (node/node-style nesting-depth)}
+        (str "Time Value: "
+        (t-format/unparse standard-time-format start-time))])

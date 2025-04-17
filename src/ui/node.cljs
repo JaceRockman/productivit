@@ -111,7 +111,7 @@
 
               (update-height-val state-conn entity-id (new (.-Value rn/Animated) initial-height))))))
 
-(defn animated-node
+(defn default-node
   [state-conn db-conn render-content node-data nesting-depth child-nodes]
   (let [entity-id (:db/id node-data)
         _ (initialize-node-state state-conn node-data)]
@@ -119,7 +119,7 @@
     [:> rn/View
      [:> rn/Pressable {:on-press (toggle state-conn node-data)
                       :on-long-press (toggle-menu state-conn db-conn node-data)}
-      (render-content state-conn node-data nesting-depth)]
+      (render-content db-conn state-conn node-data nesting-depth)]
      (divider)
      (when (get-component-state state-conn entity-id :show-menu)
        (ActionMenu node-data))

@@ -3,22 +3,17 @@
               [datascript.core :as ds]
               ["react-native" :as rn]))
 
-(defn task-node-component
-  [state-conn
-   db-conn
-   {:keys [:db/id primary-sub-node sub-nodes task-value on-task-toggled] :as node-data}
-   nesting-depth
-   child-nodes]
-   (node/animated-node
-    state-conn
-    db-conn
-    (fn [state-conn node-data nesting-depth]
+(defn toggle-task
+  [state-conn id]
+  #(ds/transact! state-conn [[:db.fn/call node/toggle-state id :task-value]]))
+
+(defn task-node-content
+  [db-conn _ {:keys [:db/id primary-sub-node sub-nodes task-value on-task-toggled] :as node-data} nesting-depth]
       [:> rn/Switch {:key id
                      :style (merge (node/node-style nesting-depth) 
                                     {:transform [{:scale 0.8}]})
-                     :on-value-change #(ds/transact! state-conn [[:db.fn/call node/toggle-state (:db/id node-data) :task-value]])
-                     :value (:task-value (ds/entity @state-conn (:db/id node-data)))
+                     :on-value-change (toggle-task db-conn id)
+                     :value (:task-value (ds/entity @db-conn id))
                      :trackColor {:false "#ffcccc"
                                   :true  "#ccffcc"}
-                     :thumbColor (if (:task-value (ds/entity @state-conn (:db/id node-data))) "#66ff66" "#ff6666")}])
-    node-data nesting-depth child-nodes))
+                     :thumbColor (if (:task-value (ds/entity @db-conn id)) "#66ff66" "#ff6666")}])

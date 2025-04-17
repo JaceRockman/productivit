@@ -10,10 +10,10 @@
    [cljs-time.format :as t-format]
    [cljs-time.core :as t]
    [ui.node :as node]
-   [ui.text-node :refer [text-node-component]]
-   [ui.time-node :refer [time-node-component]]
-   [ui.task-node :refer [task-node-component]]
-   [ui.tracker-node :refer [tracker-node-component]]
+   [ui.text-node :refer [text-node-content]]
+   [ui.time-node :refer [time-node-content]]
+   [ui.task-node :refer [task-node-content]]
+   [ui.tracker-node :refer [tracker-node-content]]
    [data.queries :as queries]
    ["@expo/vector-icons" :refer [FontAwesome5]])
   (:require-macros
@@ -22,22 +22,22 @@
 (def app-db-conn (ds/create-conn data/schema))
 (def app-state-conn (ds/create-conn {}))
 
-(defn determine-node-function
+(defn determine-node-content-function
   [{:keys [text-value start-time task-value tracker-value] :as node}]
   (cond
-    (some? text-value)    text-node-component
-    (some? start-time)    time-node-component
-    (some? task-value)    task-node-component
-    (some? tracker-value) tracker-node-component
+    (some? text-value)    text-node-content
+    (some? start-time)    time-node-content
+    (some? task-value)    task-node-content
+    (some? tracker-value) tracker-node-content
     :else                 #(println "Unknown node:" %2)))
 
 (defn render-node
   [state-conn db-conn node-data nesting-depth]
-  (let [node-fn (determine-node-function node-data)
+  (let [node-content-fn (determine-node-content-function node-data)
         sub-node-data (:sub-nodes node-data)
         child-nodes (when (some? sub-node-data)
                       (doall (map #(render-node state-conn db-conn % (inc nesting-depth)) sub-node-data)))]
-    (node-fn state-conn db-conn node-data nesting-depth child-nodes)))
+    (node/default-node state-conn db-conn node-content-fn node-data nesting-depth child-nodes)))
 
 (defn example-group-component
   [db-conn state-conn]
