@@ -1,7 +1,7 @@
 (ns data.queries
   (:require [datascript.core :as ds]))
 
-(defn find-top-level-nodes
+(defn find-top-level-node-ids
   [db-conn]
   (let [nodes (ds/q '[:find (pull ?e [:db/id [:_sub-nodes :as :parents]])
                       :in $
@@ -23,9 +23,17 @@
 
 (defn calculate-displayed-nodes
   [db-conn state-conn]
-  (loop [displayed-nodes (find-top-level-nodes db-conn)
+  (loop [displayed-nodes (find-top-level-node-ids db-conn)
          next-children (flatten (map #(get-shown-children db-conn state-conn %) displayed-nodes))]
          (if (empty? next-children)
          displayed-nodes
          (recur (concat displayed-nodes next-children)
                 (flatten (map #(get-shown-children db-conn state-conn %) next-children))))))
+
+
+(defn get-parent-nodes
+  [db-conn node]
+  (println (ds/pull @db-conn '[[:_sub-nodes :as :parents]] node))
+  (-> (ds/pull @db-conn '[[:_sub-nodes :as :parents]] node)
+      :parents
+      (->> (map :db/id))))

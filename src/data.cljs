@@ -62,10 +62,10 @@
 
 
 (def example-group
-  [#_{:db/id            "top-level-solo"
+  [{:db/id            "top-level-solo"
     :entity-type      "node"
     :text-value       "I'm top level"
-    :sub-nodes        []}
+    :sub-nodes        ["text-ui"]}
    {:db/id            "group"
     :entity-type      "node"
     :text-value       "ProductiviT"

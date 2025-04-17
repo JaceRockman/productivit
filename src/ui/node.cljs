@@ -1,7 +1,8 @@
 (ns ui.node
     (:require ["react-native" :as rn]
               [datascript.core :as ds]
-              ["@expo/vector-icons" :refer [FontAwesome5]]))
+              ["@expo/vector-icons" :refer [FontAwesome5]]
+              [data.queries :as queries]))
 
 (defn node-style
   [nesting-depth]
@@ -68,10 +69,21 @@
                     (.start animation (fn [finished]
                                         (println "Animation finished:" finished)))))))
 
-(defn ActionMenu [node-data]
+(defn duplicate-node 
+  [db-conn node-data]
+  (let [entity-id (:db/id node-data)
+        new-entity-id (ds/tempid :db/id)
+        new-entity-data (assoc node-data :db/id new-entity-id)
+        parent-nodes (queries/get-parent-nodes db-conn entity-id)]
+        (println "parent-nodes" parent-nodes)
+    (println "new-entity-data" new-entity-data)
+    (ds/transact! db-conn [new-entity-data])))
+
+(defn ActionMenu
+  [db-conn node-data]
   [:> rn/View 
     [:> rn/View {:style {:background-color :white :flex-direction :row :height 40 :gap 20 :justify-content :center :align-items :center}}
-        [:> rn/Pressable {:on-press #(println "Duplicated")}
+        [:> rn/Pressable {:on-press #(duplicate-node db-conn node-data)}
             [:> FontAwesome5 {:name "copy" :size 20 :color :black}]]
         [:> rn/Pressable {:on-press #(println "Edited")}
             [:> FontAwesome5 {:name "edit" :size 20 :color :black}]]
@@ -122,7 +134,7 @@
       (render-content db-conn state-conn node-data nesting-depth)]
      (divider)
      (when (get-component-state state-conn entity-id :show-menu)
-       (ActionMenu node-data))
+       (ActionMenu db-conn node-data))
      [:> rn/Animated.View 
       {:style {:overflow "hidden"
                :height (get-height-val state-conn entity-id)}}

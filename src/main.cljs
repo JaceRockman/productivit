@@ -41,19 +41,16 @@
 
 (defn example-group-component
   [db-conn state-conn]
-  (let [ex-data (ffirst (ds/q '[:find (pull ?e [*])
-                                :where [?e :text-value "ProductiviT"]]
-                              @db-conn))
+  (let [data (ds/pull-many @db-conn '[*] (queries/find-top-level-node-ids db-conn))
         ;; Might use this in the future to determine the view height so the + button stays with the content
         displayed-nodes (queries/calculate-displayed-nodes app-db-conn app-state-conn)]
     [:> rn/View {:style {:height "100vh" :width "100vh" :background :gray :flex 1}}
      [:> rn/ScrollView {:style {:flex 1 :max-height "95vh"}}
-      (render-node state-conn db-conn ex-data 0)]
+      (map #(render-node state-conn db-conn % 0) data)]
      (node/create-node-button state-conn db-conn)]))
 
 (defn root [db-conn state-conn]
-  (let [main-nav nil #_(when (not (nil?
-  conn)) (navigation/get-main-nav-state conn))]
+  (let [main-nav nil #_(when (not (nil? conn)) (navigation/get-main-nav-state conn))]
     (case main-nav
       (r/as-element (example-group-component db-conn state-conn)))))
 
