@@ -17,7 +17,7 @@
 
 (defn get-shown-children
  [db-conn state-conn node]
- (if (:show-children (ds/pull @state-conn '[:db/id :show-children] node))
+ (if (:show-children (ds/pull @state-conn '[:id-ref :show-children] node))
      (get-children db-conn node)
      []))
 

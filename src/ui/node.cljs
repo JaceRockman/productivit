@@ -22,6 +22,8 @@
             :where [?e ?a ?v]]
           @conn entity-id attribute))))
 
+
+
 (defn toggle-state
   [state-conn entity-id attribute]
   (let [[current-value] (first (ds/q '[:find ?v
@@ -126,22 +128,35 @@
                     :on-press #(println "Create New Top Level Node")}
    [:> FontAwesome5 {:name "plus" :size 20 :color :black}]])
 
-(defn initialize-node-state
-  [state-conn node-data]
-  (let [entity-id (:db/id node-data)]
-    (when (nil? (get-component-state state-conn entity-id :show-children))
-          (update-component-state state-conn entity-id :show-children true))
+(defn initialize-show-children
+  [state-conn entity-id]
+  (println (get-component-state state-conn entity-id :show-children))
+  (when (nil? (get-component-state state-conn entity-id :show-children))
+    (update-component-state state-conn entity-id :show-children true)))
 
+(defn initialize-height-atom
+  [node-data state-conn entity-id]
   (when (nil? (get-height-atom state-conn entity-id))
-        (let [is-expanded (get-component-state state-conn entity-id :show-children)
-              initial-height (if is-expanded (calculate-height node-data state-conn) 0)]
+    (let [is-expanded (get-component-state state-conn entity-id :show-children)
+          initial-height (if is-expanded
+                          (calculate-height node-data state-conn)
+                          0)]
+      (update-height-atom state-conn entity-id (new (.-Value rn/Animated) initial-height)))))
 
-             (update-height-atom state-conn entity-id (new (.-Value rn/Animated) initial-height))))))
+(defn initialize-node-states
+  [state-conn node-data]
+  (let [entity-ids (first (ds/q '[:find ?e
+                                  :in $ ?db-id
+                                  :where [?e :id-ref ?db-id]]
+                              @state-conn (:db/id node-data)))]
+
+    (doall (map #(initialize-show-children state-conn %) entity-ids))
+    (doall (map #(initialize-height-atom node-data state-conn %) entity-ids))))
 
 (defn default-node
   [state-conn db-conn render-content node-data nesting-depth child-nodes]
   (let [entity-id (:db/id node-data)
-        _ (initialize-node-state state-conn node-data)]
+        _ (initialize-node-states state-conn node-data)]
     
     [:> rn/Animated.View
      {:style {:overflow "hidden"

@@ -63,21 +63,21 @@
     (expo-root/render-root (r/as-element (root app-db-conn app-state-conn)))))
 
 ;; re-render on every DB change
-(ds/listen! app-db-conn
-            (fn [tx-report]
-              ;; (println "app db listen triggered")
-              ;; (println tx-report)
-              ;; (println app-state-conn)
-              (render (r/atom (:db-after tx-report)) app-state-conn)))
+(defn start-db-listen
+  []
+  (ds/listen! app-db-conn
+    (fn [tx-report]
+      (render (r/atom (:db-after tx-report)) app-state-conn))))
 
-(ds/listen! app-state-conn
-            (fn [tx-report]
-              ;; (println "app state listen triggered")
-              ;; (println app-db-conn)
-              ;; (println tx-report)
-              (render app-db-conn (r/atom (:db-after tx-report)))))
+;; re-render on every state change
+(defn start-state-listen
+  []
+  (ds/listen! app-state-conn
+    (fn [tx-report]
+      (render app-db-conn (r/atom (:db-after tx-report))))))
 
 (defn ^:export init []
-  (init/initialize-app-db app-db-conn)
-  (init/initialize-app-state app-state-conn)
+  (init/initialize-db-and-state app-db-conn app-state-conn)
+  (start-db-listen)
+  (start-state-listen)
   (render app-db-conn app-state-conn))

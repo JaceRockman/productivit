@@ -158,24 +158,3 @@
    {:db/id      "tracker-task-3"
     :entity-type      "node"
     :task-value false}])
-
-(def example-group-state
-  [{:db/id 1 :show-children true}
-   {:db/id 2 :show-children true}
-   {:db/id 3 :show-children true}
-   {:db/id 4 :show-children true}
-   {:db/id 5 :show-children true}
-   {:db/id 6 :show-children true}
-   {:db/id 7 :show-children true}
-   {:db/id 8 :show-children true}
-   {:db/id 9 :show-children true}
-   {:db/id 10 :show-children true}
-   {:db/id 11 :show-children true}
-   {:db/id 12 :show-children true}
-   {:db/id 13 :show-children true}
-   {:db/id 14 :show-children true}
-   {:db/id 15 :show-children true}
-   {:db/id 16 :show-children true}
-   {:db/id 17 :show-children true}
-   {:db/id 18 :show-children true}
-])
