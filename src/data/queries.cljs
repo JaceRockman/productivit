@@ -3,10 +3,11 @@
 
 (defn find-top-level-nodes
   [conn]
-  (let [nodes (ds/q '[:find (pull ?e [:db/id [:_sub-nodes :as :parents] :sub-nodes])
+  (let [nodes (ds/q '[:find (pull ?e [* [:_sub-nodes :as :parents]])
                       :in $
                       :where [?e :entity-type "node"]]
                     @conn)]
+    ;; (println "nodes" nodes)
     (filter #(-> % first :parents nil?) nodes)))
 
 (defn find-top-level-node-ids

@@ -12,6 +12,7 @@
 
     (if-not first-call?
       (when-let [root @root-component-ref]
+
         (.forceUpdate ^js root))
       (let [Root
             (crc

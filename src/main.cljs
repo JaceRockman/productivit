@@ -19,79 +19,57 @@
   (:require-macros
    [macros :refer [profile]]))
 
-(def app-db-conn (ds/create-conn data/schema))
-(def app-state-conn (ds/create-conn data/schema))
+(def ds-conn (ds/create-conn data/schema))
 
 (defn determine-node-type
-  [db-conn db-ref]
-  (let [{:keys [text-value start-time task-value tracker-value] :as node}
-        (ds/pull @db-conn
-                 '[:db/id :text-value :start-time :task-value :tracker-value] db-ref)]
-    (cond
-      (some? text-value)    text-node-content
-      (some? start-time)    time-node-content
-      (some? task-value)    task-node-content
-      (some? tracker-value) tracker-node-content
-      :else                 #(println "Unknown node:" %2))))
+  [{:keys [text-value start-time task-value tracker-value] :as node-data}]
+  (cond
+    (some? text-value)    text-node-content
+    (some? start-time)    time-node-content
+    (some? task-value)    task-node-content
+    (some? tracker-value) tracker-node-content
+    :else                 #(println "Unknown node:" %2)))
 
 (defn render-node
-  [db-conn state-conn state-node-id nesting-depth]
-  (let [{:keys [db-ref sub-nodes] :as state-data}
-        (ds/pull @state-conn '[*] state-node-id)
-
-        render-fn (determine-node-type db-conn db-ref)
-        sub-node-ids (map :db/id sub-nodes)
-        sub-nodes
-        (when (some? sub-node-ids)
-          (doall (map #(render-node db-conn
-                                    state-conn
+  [ds-conn {:keys [sub-nodes] :as node-data} nesting-depth]
+  (let [render-fn (determine-node-type node-data)
+        rendered-sub-nodes
+        (when (some? sub-nodes)
+          (doall (map #(render-node ds-conn
                                     %
                                     (inc nesting-depth))
-                      sub-node-ids)))]
-    (node/default-node db-conn state-conn render-fn state-data nesting-depth sub-nodes)))
+                      sub-nodes)))]
+    (node/default-node ds-conn node-data render-fn nesting-depth rendered-sub-nodes)))
 
 (defn home-component
-  [db-conn state-conn]
-  (let [top-level-state-ids (queries/find-top-level-node-ids state-conn)
-
-        ;; Might use this in the future to determine the view height so the + button stays with the content
-        ;; displayed-nodes (queries/recursively-get-displayed-sub-node-ids
-        ;;                   app-db-conn
-        ;;                   app-state-conn
-        ;;                   (queries/find-top-level-node-ids db-conn))
-        ]
+  [ds-conn]
+  (let [top-level-nodes (map first (queries/find-top-level-nodes ds-conn))]
     [:> rn/View {:style {:height "100vh" :width "100vh"
                          :background :gray :flex 1}}
      [:> rn/ScrollView {:style {:flex 1 :max-height "95vh"}}
-      (map #(render-node db-conn state-conn % 0) top-level-state-ids)]
-     (node/create-node-button state-conn db-conn)]))
+      (map #(render-node ds-conn % 0) top-level-nodes)]
+     (node/create-node-button ds-conn)]))
 
-(defn root [db-conn state-conn]
+(defn root [ds-conn]
   (let [main-nav nil #_(when (not (nil? conn)) (navigation/get-main-nav-state conn))]
     (case main-nav
-      (r/as-element (home-component db-conn state-conn)))))
+      (r/as-element (home-component ds-conn)))))
 
 (defn ^:dev/after-load render
-  [db-conn state-conn]
+  [_]
   (profile "render"
-           (expo-root/render-root (r/as-element (root app-db-conn app-state-conn)))))
+           (expo-root/render-root (r/as-element (root ds-conn)))))
 
 ;; re-render on every DB change
-(defn start-db-listen
+(defn start-ds-listen
   []
-  (ds/listen! app-db-conn
+  (ds/listen! ds-conn
               (fn [tx-report]
-                (render (r/atom (:db-after tx-report)) app-state-conn))))
+                (render (r/atom (:db-after tx-report))))))
 
-;; re-render on every state change
-(defn start-state-listen
-  []
-  (ds/listen! app-state-conn
-              (fn [tx-report]
-                (render app-db-conn (r/atom (:db-after tx-report))))))
 
 (defn ^:export init []
-  (init/initialize-db-and-state app-db-conn app-state-conn)
-  (start-db-listen)
-  (start-state-listen)
-  (render app-db-conn app-state-conn))
+  ;; (init/initialize-ds-from-dt ds-conn)
+  (init/initialize-example-ds-conn ds-conn)
+  (start-ds-listen)
+  (render ds-conn))
