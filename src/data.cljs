@@ -59,7 +59,35 @@
    :on-tracker-increase 'tracker-increase
    :on-tracker-decrease 'tracker-decrease})
 
-
+(def simple-example
+  [{:db/id            "1"
+    :entity-type      "node"
+    :text-value       "1"
+    :sub-nodes        []}
+   {:db/id            "2"
+    :entity-type      "node"
+    :text-value       "2"
+    :sub-nodes        ["2.1" "2.2"]}
+   {:db/id            "2.1"
+    :entity-type      "node"
+    :text-value       "2.1"
+    :sub-nodes        ["2.1.1" "2.1.2"]}
+   {:db/id            "2.2"
+    :entity-type      "node"
+    :text-value       "2.2"
+    :sub-nodes        []}
+   {:db/id            "2.1.1"
+    :entity-type      "node"
+    :text-value       "2.1.1"
+    :sub-nodes        []}
+   {:db/id            "2.1.2"
+    :entity-type      "node"
+    :text-value       "2.1.2"
+    :sub-nodes        []}
+   {:db/id            "3"
+    :entity-type      "node"
+    :text-value       "3"
+    :sub-nodes        ["2.1"]}])
 
 (def example-group
   [{:db/id            "top-level-solo"
