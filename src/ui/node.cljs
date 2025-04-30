@@ -3,7 +3,7 @@
             [datascript.core :as ds]
             ["@expo/vector-icons" :refer [FontAwesome5]]
             [data.queries :as queries]
-            [init :as init]))
+            [data.init :as init]))
 
 (defn node-style
   [nesting-depth]

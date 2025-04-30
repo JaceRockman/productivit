@@ -5,8 +5,8 @@
    ["react-native" :as rn]
    [datascript.core :as ds]
    [expo.root :as expo-root]
-   [init :as init]
-   [data :as data]
+   [data.init :as init]
+   [data.database :as database]
    [cljs-time.format :as t-format]
    [cljs-time.core :as t]
    [ui.node :as node]
@@ -19,7 +19,7 @@
   (:require-macros
    [macros :refer [profile]]))
 
-(def ds-conn (ds/create-conn data/schema))
+(def ds-conn (ds/create-conn database/schema))
 
 (defn determine-node-type
   [{:keys [text-value start-time task-value tracker-value] :as node-data}]
