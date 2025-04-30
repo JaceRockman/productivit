@@ -69,3 +69,24 @@
           :where [?p :sub-nodes ?c]]
         @db-conn
         db-eid))
+
+(defn get-modal-state
+  [ds-conn]
+  (ffirst (ds/q '[:find (pull ?e [*])
+                  :in $
+                  :where [?e :entity-type "modal"]]
+                @ds-conn)))
+
+(defn open-node-edit-modal
+  [ds-conn {:keys [db/id] :as node-data}]
+  (let [modal-state (get-modal-state ds-conn)]
+    (ds/transact! ds-conn [{:db/id (:db/id modal-state)
+                            :node-ref id
+                            :display true}])))
+
+(defn toggle-modal
+  [ds-conn]
+  (let [{:keys [db/id display]} (get-modal-state ds-conn)]
+    (ds/transact! ds-conn [{:db/id id
+                            :display (not display)}])))
+

@@ -60,7 +60,13 @@
    :on-tracker-decrease 'tracker-decrease})
 
 (def simple-example
-  [{:db/id            "1"
+  [{:db/id "modal-state"
+    :entity-type "modal"}
+   {:db/id "time-example"
+    :entity-type      "node"
+    :start-time       (t/now)
+    :end-time         (t/plus (t/now) (t/minutes 1))}
+   {:db/id            "1"
     :entity-type      "node"
     :text-value       "1"
     :sub-nodes        []}

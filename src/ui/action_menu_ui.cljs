@@ -84,6 +84,50 @@
     (queries/remove-from-parent-node ds-conn id)
     (ds/transact! ds-conn [[:db.fn/retractEntity (:db/id node-data)]])))
 
+
+
+(defn add-node-rule
+  [ds-conn {:keys [db/id] :as node-data}])
+
+(def modal-style {:width "80vw" :height "80vh"
+                  :background-color :white :opacity 1 :color :black
+                  :text-align :center :font-size 20 :font-weight :bold})
+
+(defn edit-text-node
+  [ds-conn {:keys [text-value] :as node-data}]
+  [:> rn/View {:style modal-style}
+   [:> rn/Text "Text node"]
+   [:> rn/Text (str "Text value: " text-value)]])
+
+(def datetime-picker (js/require "@react-native-community/datetimepicker"))
+
+(defn edit-time-node
+  [ds-conn {:keys [start-time] :as node-data}]
+  [:> rn/View {:style modal-style}
+   [:> rn/Text "Time node"]
+   [:> rn/Text (str "Start time: " start-time)]])
+
+(defn edit-task-node
+  [ds-conn {:keys [task-value] :as node-data}]
+  [:> rn/View {:style modal-style}
+   [:> rn/Text "Task node"]
+   [:> rn/Text (str "Task value: " task-value)]])
+
+(defn edit-tracker-node
+  [ds-conn {:keys [tracker-value] :as node-data}]
+  [:> rn/View {:style modal-style}
+   [:> rn/Text "Tracker node"]
+   [:> rn/Text (str "Tracker value: " tracker-value)]])
+
+(defn node-edit-window
+  [ds-conn {:keys [text-value start-time task-value tracker-value] :as node-data}]
+  (cond
+    (some? text-value)    (edit-text-node ds-conn node-data)
+    (some? start-time)    (edit-time-node ds-conn node-data)
+    (some? task-value)    (edit-task-node ds-conn node-data)
+    (some? tracker-value) (edit-tracker-node ds-conn node-data)
+    :else                 #(println "Unknown node type:" %2)))
+
 (defn ActionMenu
   [ds-conn {:keys [db/id] :as node-data}]
   [:> rn/View
@@ -92,7 +136,7 @@
      [:> FontAwesome5 {:name "copy" :size 20 :color :black}]]
     [:> rn/Pressable {:on-press #(save-as-template ds-conn node-data)}
      [:> FontAwesome5 {:name "stream" :size 20 :color :black}]]
-    [:> rn/Pressable {:on-press #(println "Edited")}
+    [:> rn/Pressable {:on-press #(queries/open-node-edit-modal ds-conn node-data)}
      [:> FontAwesome5 {:name "edit" :size 20 :color :black}]]
     [:> rn/Pressable {:on-press #(delete-node ds-conn node-data)}
      [:> FontAwesome5 {:name "trash" :size 20 :color :black}]]

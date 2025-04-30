@@ -15,7 +15,8 @@
    [ui.task-node :refer [task-node-content]]
    [ui.tracker-node :refer [tracker-node-content]]
    [data.queries :as queries]
-   ["@expo/vector-icons" :refer [FontAwesome5]])
+   ["@expo/vector-icons" :refer [FontAwesome5]]
+   [ui.action-menu-ui :as action-menu])
   (:require-macros
    [macros :refer [profile]]))
 
@@ -41,11 +42,27 @@
                       sub-nodes)))]
     (node/default-node ds-conn node-data render-fn nesting-depth rendered-sub-nodes)))
 
+(defn modal-component
+  [ds-conn]
+  (let [{:keys [node-ref display]} (queries/get-modal-state ds-conn)]
+    (let [node-data (when (some? node-ref) (ds/pull @ds-conn '[*] node-ref))]
+      (println "node-data" node-data)
+      [:> rn/Modal {:visible display
+                    :transparent true
+                    :on-request-close #(queries/toggle-modal ds-conn)}
+       [:> rn/Pressable {:style {:position :absolute :top 0 :left 0 :right 0 :bottom 0
+                                 :background-color "rgba(0, 0, 0, 0.5)"
+                                 :align-items :center :justify-content :center}
+                         :on-press #(queries/toggle-modal ds-conn)}
+        [:> rn/Pressable {:on-press #(println "Click intercepted")}
+         (action-menu/node-edit-window ds-conn node-data)]]])))
+
 (defn home-component
   [ds-conn]
   (let [top-level-nodes (map first (queries/find-top-level-nodes ds-conn))]
     [:> rn/View {:style {:height "100vh" :width "100vh"
                          :background :gray :flex 1}}
+     (modal-component ds-conn)
      [:> rn/ScrollView {:style {:flex 1 :max-height "95vh"}}
       (map #(render-node ds-conn % 0) top-level-nodes)]
      (node/create-node-button ds-conn)]))
