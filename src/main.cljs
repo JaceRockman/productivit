@@ -59,8 +59,9 @@
 (defn home-component
   [ds-conn]
   (let [top-level-nodes (map first (queries/find-top-level-nodes ds-conn))]
-    [:> rn/View {:style {:height "100vh" :width "100vh"
-                         :background :gray :flex 1}}
+    [:> rn/SafeAreaView {:style {:padding-top (if (= (get (js->clj rn/Platform) "OS") "android") 50 0)
+                                 :height "100vh" :width "100vh"
+                                 :background-color :gray :flex 1}}
      (modal-component ds-conn)
      [:> rn/ScrollView {:style {:flex 1 :max-height "95vh"}}
       (map #(render-node ds-conn % 0) top-level-nodes)]

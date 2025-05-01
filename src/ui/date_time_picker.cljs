@@ -2,6 +2,7 @@
   (:require [reagent.core :as r]
             [react-native :as rn]
             [cljs-time.core :as t]
+            [cljs-time.coerce :as t-coerce]
             [cljs-time.format :as t-format]))
 
 (def standard-date-format
@@ -57,7 +58,7 @@
 (def DateTimePicker
   (r/create-class
    {:reagent-render (fn [{:keys [dateAtom onChange] :as props}]
-                      (let [current-date (or @dateAtom (js/Date.))
+                      (let [date-value @dateAtom
                             update-date (fn [new-date]
                                           (reset! dateAtom new-date)
                                           (when onChange
@@ -66,11 +67,30 @@
                          [:> rn/View {:style {:margin 30}}
                           [:> rn/Text {:style {:font-weight "bold" :margin-bottom 10 :text-align "center"}} "Date:"]
                           [:> DatePicker
-                           {:value current-date
-                            :mode "datetime"
-                            :locale "en"
-                            :on-change (fn [date] (update-date date))
-                            :calendar-info {:type "gregorian"}}]]
+                           {:styles {:today {:borderColor "#007AFF" :borderWidth 1}
+                                     :selected {:backgroundColor "#007AFF"}
+                                     :selected_label {:color "white"}}
+                            :date date-value
+                            :mode "single"
+                            :onChange (fn [date]
+                                        (println "Selected date:" date)
+                                        ;; Extract the date part from the selected date
+                                        ;; and combine it with the time part from current-date
+                                        (let [selected-date (-> date
+                                                                js->clj
+                                                                (get "date")
+                                                                t-coerce/from-date
+                                                                (t/floor t/day))
+                                              hour-value (t/hours (t/hour date-value))
+                                              minute-value (t/minutes (t/minute date-value))
+                                              second-value (t/seconds (t/second date-value))
+                                              millis-value (t/millis (t/milli date-value))
+                                              combined-date (t/plus selected-date
+                                                                    hour-value
+                                                                    minute-value
+                                                                    second-value
+                                                                    millis-value)]
+                                          (update-date combined-date)))}]]
 
                          [:> rn/View {:style {:margin 30}}
                           [:> rn/Text {:style {:font-weight "bold" :margin-bottom 10 :text-align "center"}} "Time:"]
