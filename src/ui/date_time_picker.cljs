@@ -55,6 +55,19 @@
     :component-will-unmount (fn [this]
                               (.log js/console "DateTimePicker will unmount!"))}))
 
+(defn combine-date-and-time [{:keys [date-to-keep time-to-add]}]
+  (let [date-value (t/floor date-to-keep t/day)
+        hour-value (t/hours (t/hour time-to-add))
+        minute-value (t/minutes (t/minute time-to-add))
+        second-value (t/seconds (t/second time-to-add))
+        millis-value (t/millis (t/milli time-to-add))
+        combined-date (t/plus date-value
+                              hour-value
+                              minute-value
+                              second-value
+                              millis-value)]
+    combined-date))
+
 (def DateTimePicker
   (r/create-class
    {:reagent-render (fn [{:keys [dateAtom onChange] :as props}]
@@ -73,24 +86,10 @@
                             :date date-value
                             :mode "single"
                             :onChange (fn [date]
-                                        (println "Selected date:" date)
-                                        ;; Extract the date part from the selected date
-                                        ;; and combine it with the time part from current-date
-                                        (let [selected-date (-> date
-                                                                js->clj
-                                                                (get "date")
-                                                                t-coerce/from-date
-                                                                (t/floor t/day))
-                                              hour-value (t/hours (t/hour date-value))
-                                              minute-value (t/minutes (t/minute date-value))
-                                              second-value (t/seconds (t/second date-value))
-                                              millis-value (t/millis (t/milli date-value))
-                                              combined-date (t/plus selected-date
-                                                                    hour-value
-                                                                    minute-value
-                                                                    second-value
-                                                                    millis-value)]
-                                          (update-date combined-date)))}]]
+                                        (let [updated-date (combine-date-and-time
+                                                            {:date-to-keep (t-coerce/from-date (get (js->clj date) "date"))
+                                                             :time-to-add date-value})]
+                                          (update-date updated-date)))}]]
 
                          [:> rn/View {:style {:margin 30}}
                           [:> rn/Text {:style {:font-weight "bold" :margin-bottom 10 :text-align "center"}} "Time:"]
