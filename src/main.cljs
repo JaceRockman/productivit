@@ -46,7 +46,6 @@
   [ds-conn]
   (let [{:keys [node-ref display]} (queries/get-modal-state ds-conn)]
     (let [node-data (when (some? node-ref) (ds/pull @ds-conn '[*] node-ref))]
-      (println "node-data" node-data)
       [:> rn/Modal {:visible display
                     :transparent true
                     :on-request-close #(queries/toggle-modal ds-conn)}

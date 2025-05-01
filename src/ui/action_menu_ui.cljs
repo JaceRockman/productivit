@@ -1,12 +1,14 @@
 (ns ui.action-menu-ui
   (:require
    ["react-native" :as rn]
+   [reagent.core :as r]
    ["@expo/vector-icons" :refer [FontAwesome5]]
    [data.database :as database]
    [data.init :as init]
    [data.queries :as queries]
    [datascript.core :as ds]
-   [ui.shared :refer [divider]]))
+   [ui.shared :refer [divider]]
+   [ui.date-time-picker :refer [DateTimePicker]]))
 
 
 (defn template->db-data
@@ -99,13 +101,14 @@
    [:> rn/Text "Text node"]
    [:> rn/Text (str "Text value: " text-value)]])
 
-(def datetime-picker (js/require "@react-native-community/datetimepicker"))
 
 (defn edit-time-node
   [ds-conn {:keys [start-time] :as node-data}]
   [:> rn/View {:style modal-style}
    [:> rn/Text "Time node"]
-   [:> rn/Text (str "Start time: " start-time)]])
+   [:> rn/Text (str "Start time: " start-time)]
+   [:> DateTimePicker {:date-atom (r/atom start-time)
+                       :on-change (fn [new-date] (println "new-date" new-date))}]])
 
 (defn edit-task-node
   [ds-conn {:keys [task-value] :as node-data}]
