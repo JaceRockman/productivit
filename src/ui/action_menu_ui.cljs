@@ -107,7 +107,7 @@
   [:> rn/View {:style modal-style}
    [:> rn/Text "Time node"]
    [:> rn/Text (str "Start time: " start-time)]
-   [:> DateTimePicker {:date-atom (r/atom start-time)
+   [:> DateTimePicker {:date-value start-time
                        :on-change (fn [new-date]
                                     (ds/transact! ds-conn [{:db/id (:db/id node-data) :start-time new-date}]))}]])
 

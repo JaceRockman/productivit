@@ -1,5 +1,6 @@
 (ns ui.date-time-picker
-  (:require [reagent.core :as r]
+  (:require [clojure.math :as math]
+            [reagent.core :as r]
             [react-native :as rn]
             [cljs-time.core :as t]
             [cljs-time.coerce :as t-coerce]
@@ -11,49 +12,8 @@
 (def standard-time-format
   (t-format/formatter "HH:mm:ss"))
 
-(def DatePicker (.-default (js/require "react-native-ui-datepicker")))
+(def DefaultDatePicker (.-default (js/require "react-native-ui-datepicker")))
 ;; (def TimePicker (.-default (js/require "react-native-timer-picker")))
-
-(def TimePicker
-  (r/create-class
-   {:reagent-render
-    (fn [{:keys [dateAtom onChange style]}]
-      (let [current-date (or @dateAtom (js/Date.))
-            update-time (fn [new-time]
-                          (reset! dateAtom new-time)
-                          (when onChange
-                            (onChange new-time)))]
-        [:> rn/View {:style (merge {:padding 10} style)}
-         [:> rn/Text {:style {:font-weight "bold" :margin-bottom 5}}
-          "Select Time:"]
-         [:> rn/View {:style {:flex-direction "row" :align-items "center" :justify-content "center"}}
-          [:> rn/Text
-           (t-format/unparse standard-time-format current-date)]
-          [:> rn/Pressable
-           {:style {:margin-left 10
-                    :padding 8
-                    :background-color "#007AFF"
-                    :border-radius 5}
-            :on-press #(-> (js/require "react-native-timer-picker")
-                           (.-default)
-                           (.show
-                            (clj->js {:value (js/Date. current-date)
-                                      :onConfirm (fn [selected-time]
-                                                   (update-time selected-time))
-                                      :onCancel (fn [] (println "Time picker cancelled"))
-                                      :mode "time"
-                                      :is24Hour true})))}
-           [:> rn/Text {:style {:color "white"}}
-            "Change"]]]]))
-
-    :component-did-mount (fn [this]
-                           (let [props (r/props this)
-                                 date-atom (:date-atom props)]
-                             (when (and date-atom (nil? @date-atom))
-                               (reset! date-atom (js/Date.)))
-                             (.log js/console "DateTimePicker mounted!")))
-    :component-will-unmount (fn [this]
-                              (.log js/console "DateTimePicker will unmount!"))}))
 
 (defn combine-date-and-time [{:keys [date-to-keep time-to-add]}]
   (let [date-value (t/floor date-to-keep t/day)
@@ -68,34 +28,76 @@
                               millis-value)]
     combined-date))
 
-(def DateTimePicker
+(def ScrollSelector
   (r/create-class
-   {:reagent-render (fn [{:keys [dateAtom onChange] :as props}]
-                      (let [date-value @dateAtom
-                            update-date (fn [new-date]
-                                          (reset! dateAtom new-date)
-                                          (when onChange
-                                            (onChange new-date)))]
-                        [:> rn/ScrollView {:style {:flex 1 :overflow "hidden" :height "100%"}}
-                         [:> rn/View {:style {:margin 30}}
-                          [:> rn/Text {:style {:font-weight "bold" :margin-bottom 10 :text-align "center"}} "Date:"]
-                          [:> DatePicker
-                           {:styles {:today {:borderColor "#007AFF" :borderWidth 1}
-                                     :selected {:backgroundColor "#007AFF"}
-                                     :selected_label {:color "white"}}
-                            :date date-value
-                            :mode "single"
-                            :onChange (fn [date]
-                                        (let [updated-date (combine-date-and-time
-                                                            {:date-to-keep (t-coerce/from-date (get (js->clj date) "date"))
-                                                             :time-to-add date-value})]
-                                          (update-date updated-date)))}]]
+   {:reagent-render
+    (fn [{:keys [currentValue minValue maxValue interval]}]
+      (let [values (range minValue maxValue interval)
+            selected-value (if (some #(= % @currentValue) values) @currentValue (first values))
+            divider [:> rn/View {:style {:background-color "black" :height 2}}]
+            options (map-indexed (fn [index value]
+                                   [:> rn/View
+                                    [:> rn/Text {:style {:height 40 :color (if (= selected-value value) "blue" "black")
+                                                         :font-size 20 :font-weight "bold" :text-align "center"}} value]
+                                    (when (< index (dec (count values))) divider)])
+                                 values)]
+        [:> rn/ScrollView {:on-scroll
+                           (fn [scroll-data]
+                             (let [selected-position (math/round (/
+                                                                  (get-in (js->clj scroll-data)
+                                                                          ["nativeEvent" "contentOffset" "y"])
+                                                                  42))]
+                               (println (nth values selected-position))
+                               (reset! currentValue
+                                       (nth values selected-position))))
+                           :paging-enabled true
+                           :shows-horizontal-scroll-indicator false
+                           :shows-vertical-scroll-indicator false
+                           :style {:background "rgba(0,0,0,0.2)" :flex 1 :overflow "scroll" :height 124 :width 100 :text-align "center" :align-content "center"}}
+         [:> rn/View {:style {:height 42}}]
+         options
+         [:> rn/View {:style {:height 42}}]]))}))
 
-                         [:> rn/View {:style {:margin 30}}
-                          [:> rn/Text {:style {:font-weight "bold" :margin-bottom 10 :text-align "center"}} "Time:"]
-                          [:> TimePicker
-                           {:date-atom dateAtom
-                            :on-change (fn [date] (update-date date))}]]]))
+(def TimePicker
+  (r/create-class
+   {:reagent-render
+    (fn [{:keys [dateTimeAtom style]}]
+      (let [date-time-atom dateTimeAtom
+            update-time (fn [new-time]
+                          (reset! date-time-atom new-time))]
+        [:> rn/View {:style {:align-items "center" :justify-content "center"}}
+         [:> rn/Text
+          (t-format/unparse standard-time-format @date-time-atom)]
+         [:> rn/View {:style {:flex-direction "row" :gap 10 :align-items "center" :justify-content "center"}}
+          [:> ScrollSelector {:currentValue (r/atom (t/hour @date-time-atom))
+                              :minValue 0
+                              :maxValue 24
+                              :interval 1}]
+          [:> ScrollSelector {:currentValue (r/atom (t/minute @date-time-atom))
+                              :minValue 0
+                              :maxValue 60
+                              :interval 10}]
+          [:> ScrollSelector {:currentValue (r/atom (t/second @date-time-atom))
+                              :minValue 0
+                              :maxValue 60
+                              :interval 15}]]
+         #_[:> rn/Pressable
+            {:style {:margin-left 10
+                     :padding 8
+                     :background-color "#007AFF"
+                     :border-radius 5}
+             :on-press #(-> (js/require "react-native-timer-picker")
+                            (.-default)
+                            (.show
+                             (clj->js {:value (js/Date. @date-time-atom)
+                                       :onConfirm (fn [selected-time]
+                                                    (update-time selected-time))
+                                       :onCancel (fn [] (println "Time picker cancelled"))
+                                       :mode "time"
+                                       :is24Hour true})))}
+            [:> rn/Text {:style {:color "white"}}
+             "Change"]]]))
+
     :component-did-mount (fn [this]
                            (let [props (r/props this)
                                  date-atom (:date-atom props)]
@@ -103,4 +105,48 @@
                                (reset! date-atom (js/Date.)))
                              (.log js/console "DateTimePicker mounted!")))
     :component-will-unmount (fn [this]
+                              (.log js/console "DateTimePicker will unmount!"))}))
+
+(def DatePicker
+  (r/create-class
+   {:reagent-render
+    (fn [{:keys [dateTimeAtom style]}]
+      (let [date-time-atom dateTimeAtom
+            update-date (fn [new-date]
+                          (reset! date-time-atom new-date))]
+        [:> DefaultDatePicker
+         {:styles {:today {:borderColor "#007AFF" :borderWidth 1}
+                   :selected {:backgroundColor "#007AFF"}
+                   :selected_label {:color "white"}}
+          :date @date-time-atom
+          :mode "single"
+          :onChange (fn [date]
+                      (let [updated-date (combine-date-and-time
+                                          {:date-to-keep (t-coerce/from-date (get (js->clj date) "date"))
+                                           :time-to-add @date-time-atom})]
+                        (update-date updated-date)))}]))}))
+
+(def DateTimePicker
+  (r/create-class
+   {:reagent-render (fn [{:keys [dateValue onChange]}]
+                      (let [datetime-atom (r/atom dateValue)
+                            submit-changes (fn [new-date]
+                                             (when onChange
+                                               (onChange new-date)))]
+                        [:> rn/ScrollView {:style {:flex 1 :overflow "hidden" :height "100%"}}
+                         [:> rn/View {:style {:margin 30}}
+                          [:> DatePicker {:date-time-atom datetime-atom}]]
+
+                         [:> rn/View {:style {:margin 30}}
+                          [:> TimePicker {:date-time-atom datetime-atom}]]]))
+
+    :component-did-mount (fn [this]
+                           (let [props (r/props this)
+                                 date-atom (:date-atom props)]
+                             (when (and date-atom (nil? @date-atom))
+                               (reset! date-atom (js/Date.)))
+                             (.log js/console "DateTimePicker mounted!")))
+
+    :component-will-unmount (fn [this]
+                              (println this)
                               (.log js/console "DateTimePicker will unmount!"))}))
