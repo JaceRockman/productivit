@@ -48,7 +48,7 @@
                                                          (/ 42)
                                                          math/round)
                                    selected-value (nth values selected-position)
-                                   new-time (t/plus (t/floor (t/now) t/day)
+                                   new-time (t/plus (t/floor @dateTimeAtom t/day)
                                                     (if (= unit "hour") (t/hours selected-value) (t/hours (t/hour @dateTimeAtom)))
                                                     (if (= unit "minute") (t/minutes selected-value) (t/minutes (t/minute @dateTimeAtom)))
                                                     (if (= unit "second") (t/seconds selected-value) (t/seconds (t/second @dateTimeAtom)))
@@ -142,6 +142,7 @@
 
     :component-did-mount (fn [this]
                            (let [props (r/props this)
+                                 _ (println props)
                                  date-atom (:date-atom props)]
                              (when (and date-atom (nil? @date-atom))
                                (reset! date-atom (js/Date.)))
