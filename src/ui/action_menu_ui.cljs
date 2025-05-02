@@ -121,11 +121,11 @@
 (def NumericInput
   (r/create-class
    {:reagent-render
-    (fn [{:keys [label txnValues attribute updateValue] :as props}]
+    (fn [{:keys [label txnValues attribute updateValue]}]
       (let [txn-values txnValues]
         [:> rn/View {:style {:flex-direction :row :gap 10 :align-items :center}}
          [:> rn/Text label]
-         [:> rn/TextInput {:placeholder (get @txn-values attribute)
+         [:> rn/TextInput {:placeholder (get @txn-values (keyword attribute))
                            :keyboard-type "numeric"
                            :style {:border-width 1 :border-color :black :padding 5 :border-radius 5 :width 100}
                            :on-change-text (fn [text]
@@ -135,17 +135,14 @@
 (defn tracker-node-edit-modal
   [{:keys [node-data on-change]}]
   (let [txn-values (r/atom (select-keys node-data [:tracker-min-value :tracker-value :tracker-max-value]))
-        valid-input? (fn [txn-values]
-                       (<= (:tracker-min-value txn-values)
-                           (:tracker-value txn-values)
-                           (:tracker-max-value txn-values)))
+        valid-input? (r/atom true)
         submit-changes (fn [new-values]
                          (on-change new-values))]
     [:> rn/View {:style modal-style}
      [:> rn/Text "Tracker node"]
-     [:> rn/Pressable {:style {:color (if (valid-input? @txn-values) :black :red) :position :absolute :top 0 :right 0}
-                       :disabled (not (valid-input? @txn-values))
-                       :on-press #(if (valid-input? @txn-values)
+     [:> rn/Pressable {:style {:color (if @valid-input? :black :red) :position :absolute :top 0 :right 0}
+                       :disabled (not @valid-input?)
+                       :on-press #(if @valid-input?
                                     (submit-changes (mapv
                                                      (fn [[k v]] [:db/add (:db/id node-data) k v])
                                                      @txn-values))
@@ -156,19 +153,28 @@
       [:> rn/Text "Save"]]
      [:> NumericInput {:label "Minimum value:"
                        :txn-values txn-values
-                       :attribute "trackerMinValue"
+                       :attribute :tracker-min-value
                        :update-value (fn [new-value]
-                                       (swap! txn-values assoc :tracker-min-value new-value))}]
+                                       (swap! txn-values assoc :tracker-min-value new-value)
+                                       (reset! valid-input? (<= (:tracker-min-value @txn-values)
+                                                                (:tracker-value @txn-values)
+                                                                (:tracker-max-value @txn-values))))}]
      [:> NumericInput {:label "Tracker value:"
                        :txn-values txn-values
-                       :attribute "trackerValue"
+                       :attribute :tracker-value
                        :update-value (fn [new-value]
-                                       (swap! txn-values assoc :tracker-value new-value))}]
+                                       (swap! txn-values assoc :tracker-value new-value)
+                                       (reset! valid-input? (<= (:tracker-min-value @txn-values)
+                                                                new-value
+                                                                (:tracker-max-value @txn-values))))}]
      [:> NumericInput {:label "Maximum value:"
                        :txn-values txn-values
-                       :attribute "trackerMaxValue"
+                       :attribute :tracker-max-value
                        :update-value (fn [new-value]
-                                       (swap! txn-values assoc :tracker-max-value new-value))}]]))
+                                       (swap! txn-values assoc :tracker-max-value new-value)
+                                       (reset! valid-input? (<= (:tracker-min-value @txn-values)
+                                                                (:tracker-value @txn-values)
+                                                                new-value)))}]]))
 
 (defn edit-tracker-node
   [ds-conn node-data]
