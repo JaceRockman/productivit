@@ -13,7 +13,6 @@
   (t-format/formatter "HH:mm:ss"))
 
 (def DefaultDatePicker (.-default (js/require "react-native-ui-datepicker")))
-;; (def TimePicker (.-default (js/require "react-native-timer-picker")))
 
 (defn combine-date-and-time [{:keys [date-to-keep time-to-add]}]
   (let [date-value (t/floor date-to-keep t/day)
@@ -43,22 +42,17 @@
                                  values)]
         [:> rn/ScrollView {:on-scroll
                            (fn [scroll-data]
-                             (let [selected-position (math/round (/
-                                                                  (get-in (js->clj scroll-data)
-                                                                          ["nativeEvent" "contentOffset" "y"])
-                                                                  42))
+                             (let [selected-position (-> scroll-data
+                                                         js->clj
+                                                         (get-in ["nativeEvent" "contentOffset" "y"])
+                                                         (/ 42)
+                                                         math/round)
                                    selected-value (nth values selected-position)
                                    new-time (t/plus (t/floor (t/now) t/day)
                                                     (if (= unit "hour") (t/hours selected-value) (t/hours (t/hour @dateTimeAtom)))
                                                     (if (= unit "minute") (t/minutes selected-value) (t/minutes (t/minute @dateTimeAtom)))
                                                     (if (= unit "second") (t/seconds selected-value) (t/seconds (t/second @dateTimeAtom)))
                                                     (if (= unit "millisecond") (t/millis selected-value) (t/millis (t/milli @dateTimeAtom))))]
-                               (case unit
-                                 "hour" (println "new hour value" (t/hours selected-value))
-                                 "minute" (println "new minute value" (t/minutes selected-value))
-                                 "second" (println "new second value" (t/seconds selected-value))
-                                 "millisecond" (println "new millisecond value" (t/millis selected-value)))
-                               (println "new-time" new-time)
                                (updateTime new-time)))
                            :paging-enabled true
                            :shows-horizontal-scroll-indicator false
@@ -99,23 +93,7 @@
                               :unit "second"
                               :minValue 0
                               :maxValue 60
-                              :interval 15}]]
-         #_[:> rn/Pressable
-            {:style {:margin-left 10
-                     :padding 8
-                     :background-color "#007AFF"
-                     :border-radius 5}
-             :on-press #(-> (js/require "react-native-timer-picker")
-                            (.-default)
-                            (.show
-                             (clj->js {:value (js/Date. @date-time-atom)
-                                       :onConfirm (fn [selected-time]
-                                                    (update-time selected-time))
-                                       :onCancel (fn [] (println "Time picker cancelled"))
-                                       :mode "time"
-                                       :is24Hour true})))}
-            [:> rn/Text {:style {:color "white"}}
-             "Change"]]]))
+                              :interval 15}]]]))
 
     :component-did-mount (fn [this]
                            (let [props (r/props this)

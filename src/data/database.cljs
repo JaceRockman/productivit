@@ -66,6 +66,12 @@
     :entity-type      "node"
     :start-time       (t/now)
     :end-time         (t/plus (t/now) (t/minutes 1))}
+   {:db/id             "tracker-example"
+    :entity-type      "node"
+    :tracker-value     0
+    :tracker-min-value 0
+    :tracker-max-value 5
+    :increments [-5 -3 -1 1 3 5]}
    {:db/id            "1"
     :entity-type      "node"
     :text-value       "1"
