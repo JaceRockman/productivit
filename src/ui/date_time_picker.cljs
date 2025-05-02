@@ -31,7 +31,7 @@
 (def ScrollSelector
   (r/create-class
    {:reagent-render
-    (fn [{:keys [currentValue minValue maxValue interval]}]
+    (fn [{:keys [updateTime dateTimeAtom currentValue minValue maxValue interval unit]}]
       (let [values (range minValue maxValue interval)
             selected-value (if (some #(= % @currentValue) values) @currentValue (first values))
             divider [:> rn/View {:style {:background-color "black" :height 2}}]
@@ -46,10 +46,20 @@
                              (let [selected-position (math/round (/
                                                                   (get-in (js->clj scroll-data)
                                                                           ["nativeEvent" "contentOffset" "y"])
-                                                                  42))]
-                               (println (nth values selected-position))
-                               (reset! currentValue
-                                       (nth values selected-position))))
+                                                                  42))
+                                   selected-value (nth values selected-position)
+                                   new-time (t/plus (t/floor (t/now) t/day)
+                                                    (if (= unit "hour") (t/hours selected-value) (t/hours (t/hour @dateTimeAtom)))
+                                                    (if (= unit "minute") (t/minutes selected-value) (t/minutes (t/minute @dateTimeAtom)))
+                                                    (if (= unit "second") (t/seconds selected-value) (t/seconds (t/second @dateTimeAtom)))
+                                                    (if (= unit "millisecond") (t/millis selected-value) (t/millis (t/milli @dateTimeAtom))))]
+                               (case unit
+                                 "hour" (println "new hour value" (t/hours selected-value))
+                                 "minute" (println "new minute value" (t/minutes selected-value))
+                                 "second" (println "new second value" (t/seconds selected-value))
+                                 "millisecond" (println "new millisecond value" (t/millis selected-value)))
+                               (println "new-time" new-time)
+                               (updateTime new-time)))
                            :paging-enabled true
                            :shows-horizontal-scroll-indicator false
                            :shows-vertical-scroll-indicator false
@@ -69,15 +79,24 @@
          [:> rn/Text
           (t-format/unparse standard-time-format @date-time-atom)]
          [:> rn/View {:style {:flex-direction "row" :gap 10 :align-items "center" :justify-content "center"}}
-          [:> ScrollSelector {:currentValue (r/atom (t/hour @date-time-atom))
+          [:> ScrollSelector {:updateTime update-time
+                              :dateTimeAtom date-time-atom
+                              :currentValue (r/atom (t/hour @date-time-atom))
+                              :unit "hour"
                               :minValue 0
                               :maxValue 24
                               :interval 1}]
-          [:> ScrollSelector {:currentValue (r/atom (t/minute @date-time-atom))
+          [:> ScrollSelector {:updateTime update-time
+                              :dateTimeAtom date-time-atom
+                              :currentValue (r/atom (t/minute @date-time-atom))
+                              :unit "minute"
                               :minValue 0
                               :maxValue 60
                               :interval 10}]
-          [:> ScrollSelector {:currentValue (r/atom (t/second @date-time-atom))
+          [:> ScrollSelector {:updateTime update-time
+                              :dateTimeAtom date-time-atom
+                              :currentValue (r/atom (t/second @date-time-atom))
+                              :unit "second"
                               :minValue 0
                               :maxValue 60
                               :interval 15}]]
@@ -134,6 +153,9 @@
                                              (when onChange
                                                (onChange new-date)))]
                         [:> rn/ScrollView {:style {:flex 1 :overflow "hidden" :height "100%"}}
+                         [:> rn/Pressable {:on-press #(submit-changes @datetime-atom)}
+                          [:> rn/Text "Submit"]]
+
                          [:> rn/View {:style {:margin 30}}
                           [:> DatePicker {:date-time-atom datetime-atom}]]
 
@@ -148,5 +170,4 @@
                              (.log js/console "DateTimePicker mounted!")))
 
     :component-will-unmount (fn [this]
-                              (println this)
                               (.log js/console "DateTimePicker will unmount!"))}))

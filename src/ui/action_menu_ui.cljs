@@ -109,7 +109,8 @@
    [:> rn/Text (str "Start time: " start-time)]
    [:> DateTimePicker {:date-value start-time
                        :on-change (fn [new-date]
-                                    (ds/transact! ds-conn [{:db/id (:db/id node-data) :start-time new-date}]))}]])
+                                    (ds/transact! ds-conn [{:db/id (:db/id node-data) :start-time new-date}])
+                                    (queries/toggle-modal ds-conn))}]])
 
 (defn edit-task-node
   [ds-conn {:keys [task-value] :as node-data}]
