@@ -8,7 +8,8 @@
    [data.queries :as queries]
    [datascript.core :as ds]
    [ui.shared :refer [divider]]
-   [ui.date-time-picker :refer [DateTimePicker]]))
+   [ui.date-time-picker :refer [DateTimePicker]]
+   [camel-snake-kebab.core :as csk]))
 
 
 (defn template->db-data
@@ -118,71 +119,84 @@
    [:> rn/Text "Task node"]
    [:> rn/Text (str "Task value: " task-value)]])
 
+
+(defn numeric-input-state-change
+  [ds-conn {:keys [attribute new-value]}]
+  (let [{:keys [tracker-min-value tracker-value tracker-max-value]}
+        (queries/get-modal-state ds-conn)]
+    (queries/update-modal-state ds-conn attribute new-value)
+    (queries/update-modal-state ds-conn
+                                :valid-input?
+                                (<= tracker-min-value
+                                    tracker-value
+                                    tracker-max-value))))
+
+(defn clojurize-keys
+  [props]
+  (let [clj-props (js->clj props)]
+    (into {} (map (fn [[k v]] [(csk/->kebab-case-keyword k) (if (map? v) (clojurize-keys v) v)]) clj-props))))
+
 (def NumericInput
   (r/create-class
    {:reagent-render
-    (fn [{:keys [label txnValues attribute updateValue]}]
-      (let [txn-values txnValues]
+    (fn [props]
+      (let [{:keys [ds-conn label modal-state attribute]} (clojurize-keys props)]
         [:> rn/View {:style {:flex-direction :row :gap 10 :align-items :center}}
          [:> rn/Text label]
-         [:> rn/TextInput {:placeholder (get @txn-values (keyword attribute))
+         [:> rn/TextInput {:placeholder (get (js->clj modal-state) (keyword attribute))
                            :keyboard-type "numeric"
                            :style {:border-width 1 :border-color :black :padding 5 :border-radius 5 :width 100}
                            :on-change-text (fn [text]
                                              (let [new-value (js/parseInt text)]
-                                               (updateValue new-value)))}]]))}))
+                                               (println "new-value" new-value)
+                                               (numeric-input-state-change ds-conn {:attribute attribute
+                                                                                    :new-value new-value})))}]]))}))
 
-(def valid-input? (r/atom true))
+(defn initialize-modal-state
+  [ds-conn modal-state-data]
+  (let [{:keys [:db/id]} (queries/get-modal-state ds-conn)]
+    (ds/transact! ds-conn
+                  (map (fn [[k v]] [:db/add id k v]) modal-state-data))))
 
 (defn tracker-node-edit-modal
-  [{:keys [node-data on-change]}]
-  (let [txn-values (r/atom (select-keys node-data [:tracker-min-value :tracker-value :tracker-max-value]))
-        submit-changes (fn [new-values]
-                         (on-change new-values))]
+  [ds-conn node-data]
+  (let [txn-values (select-keys node-data [:tracker-min-value :tracker-value :tracker-max-value])
+        _ (when (not (or (contains? (queries/get-modal-state ds-conn) :tracker-min-value)
+                         (contains? (queries/get-modal-state ds-conn) :tracker-max-value)
+                         (contains? (queries/get-modal-state ds-conn) :tracker-value)))
+            (initialize-modal-state ds-conn txn-values))
+        {:keys [valid-input? tracker-min-value tracker-value tracker-max-value] :as modal-state}
+        (queries/get-modal-state ds-conn)]
     [:> rn/View {:style modal-style}
      [:> rn/Text "Tracker node"]
      [:> rn/Pressable {:style {:position :absolute :top 0 :right 0}
-                       :disabled (not @valid-input?)
-                       :on-press #(if @valid-input?
-                                    (submit-changes (mapv
-                                                     (fn [[k v]] [:db/add (:db/id node-data) k v])
-                                                     @txn-values))
+                       :disabled (not valid-input?)
+                       :on-press #(if valid-input?
+                                    (do (ds/transact! ds-conn [{:db/id (:db/id node-data)
+                                                                :tracker-min-value tracker-min-value
+                                                                :tracker-value tracker-value
+                                                                :tracker-max-value tracker-max-value}])
+                                        (queries/toggle-modal ds-conn))
+
                                     (println "Invalid Transaction"
-                                             (mapv
-                                              (fn [[k v]] [:db/add (:db/id node-data) k v])
-                                              @txn-values)))}
-      [:> rn/Text {:style {:color (if @valid-input? :black :red)}} "Save"]]
+                                             (queries/get-modal-state ds-conn)))}
+      [:> rn/Text {:style {:color (if valid-input? :black :red)}} "Save"]]
      [:> NumericInput {:label "Minimum value:"
-                       :txn-values txn-values
-                       :attribute :tracker-min-value
-                       :update-value (fn [new-value]
-                                       (swap! txn-values assoc :tracker-min-value new-value)
-                                       (reset! valid-input? (<= (:tracker-min-value @txn-values)
-                                                                (:tracker-value @txn-values)
-                                                                (:tracker-max-value @txn-values))))}]
+                       :dsConn ds-conn
+                       :modalState modal-state
+                       :attribute :tracker-min-value}]
      [:> NumericInput {:label "Tracker value:"
-                       :txn-values txn-values
-                       :attribute :tracker-value
-                       :update-value (fn [new-value]
-                                       (swap! txn-values assoc :tracker-value new-value)
-                                       (reset! valid-input? (<= (:tracker-min-value @txn-values)
-                                                                new-value
-                                                                (:tracker-max-value @txn-values))))}]
+                       :dsConn ds-conn
+                       :modalState modal-state
+                       :attribute :tracker-value}]
      [:> NumericInput {:label "Maximum value:"
-                       :txn-values txn-values
-                       :attribute :tracker-max-value
-                       :update-value (fn [new-value]
-                                       (swap! txn-values assoc :tracker-max-value new-value)
-                                       (reset! valid-input? (<= (:tracker-min-value @txn-values)
-                                                                (:tracker-value @txn-values)
-                                                                new-value)))}]]))
+                       :dsConn ds-conn
+                       :modalState modal-state
+                       :attribute :tracker-max-value}]]))
 
 (defn edit-tracker-node
   [ds-conn node-data]
-  (tracker-node-edit-modal {:node-data node-data
-                            :on-change (fn [new-values]
-                                         (ds/transact! ds-conn new-values)
-                                         (queries/toggle-modal ds-conn))}))
+  (tracker-node-edit-modal ds-conn node-data))
 
 (defn node-edit-window
   [ds-conn {:keys [text-value start-time task-value tracker-value] :as node-data}]

@@ -77,6 +77,13 @@
                   :where [?e :entity-type "modal"]]
                 @ds-conn)))
 
+(defn update-modal-state
+  [ds-conn k v]
+  (println "update-modal-state" k v)
+  (let [modal-state (get-modal-state ds-conn)]
+    (ds/transact! ds-conn [{:db/id (:db/id modal-state)
+                            (keyword k) v}])))
+
 (defn open-node-edit-modal
   [ds-conn {:keys [db/id] :as node-data}]
   (let [modal-state (get-modal-state ds-conn)]

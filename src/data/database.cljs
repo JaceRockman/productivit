@@ -61,7 +61,8 @@
 
 (def simple-example
   [{:db/id "modal-state"
-    :entity-type "modal"}
+    :entity-type "modal"
+    :valid-input? true}
    {:db/id "time-example"
     :entity-type      "node"
     :start-time       (t/now)
