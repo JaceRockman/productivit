@@ -132,15 +132,16 @@
                                              (let [new-value (js/parseInt text)]
                                                (updateValue new-value)))}]]))}))
 
+(def valid-input? (r/atom true))
+
 (defn tracker-node-edit-modal
   [{:keys [node-data on-change]}]
   (let [txn-values (r/atom (select-keys node-data [:tracker-min-value :tracker-value :tracker-max-value]))
-        valid-input? (r/atom true)
         submit-changes (fn [new-values]
                          (on-change new-values))]
     [:> rn/View {:style modal-style}
      [:> rn/Text "Tracker node"]
-     [:> rn/Pressable {:style {:color (if @valid-input? :black :red) :position :absolute :top 0 :right 0}
+     [:> rn/Pressable {:style {:position :absolute :top 0 :right 0}
                        :disabled (not @valid-input?)
                        :on-press #(if @valid-input?
                                     (submit-changes (mapv
@@ -150,7 +151,7 @@
                                              (mapv
                                               (fn [[k v]] [:db/add (:db/id node-data) k v])
                                               @txn-values)))}
-      [:> rn/Text "Save"]]
+      [:> rn/Text {:style {:color (if @valid-input? :black :red)}} "Save"]]
      [:> NumericInput {:label "Minimum value:"
                        :txn-values txn-values
                        :attribute :tracker-min-value
