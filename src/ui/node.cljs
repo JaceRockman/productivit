@@ -31,32 +31,16 @@
       [{:db/id entity-id attribute (not current-value)}]
       [{:db/id entity-id attribute true}])))
 
-(defn get-height-atom
-  [ds-conn entity-id]
-  (get-component-state ds-conn entity-id :height-val))
-
-(defn update-height-atom
-  [ds-conn entity-id new-height]
-  (ds/transact! ds-conn [{:db/id entity-id :height-val new-height}]))
 
 (defn update-component-state
   [ds-conn entity-id attribute value]
   (ds/transact! ds-conn [{:db/id entity-id attribute value}]))
 
-(defn initialize-show-children!
-  [ds-conn {:keys [db/id] :as node-data}]
-  (update-component-state ds-conn id :show-children true))
-
-(defn initialize-height-atom!
-  [ds-conn {:keys [db/id] :as node-data}]
-  (let [initial-height (queries/derive-node-height node-data)]
-    (update-height-atom ds-conn id (new (.-Value rn/Animated) initial-height))))
-
 (defn update-parent-height
-  [ds-conn {:keys [db/id height-val] :as parent-node-data}]
-  (let [to-value (queries/derive-node-height parent-node-data)
+  [ds-conn {:keys [db/id group-height] :as parent-node-data}]
+  (let [to-value (queries/get-node-group-height ds-conn (:db/id parent-node-data))
         animation (.timing rn/Animated
-                           height-val
+                           group-height
                            #js {:toValue to-value
                                 :duration 300
                                 :useNativeDriver true})
@@ -69,14 +53,13 @@
                         (println "Animation finished:" finished)))))
 
 (defn toggle
-  [ds-conn {:keys [db/id show-children height-val] :as node-data}]
+  [ds-conn {:keys [db/id show-children group-height] :as node-data}]
   (fn []
     (let [new-expanded (not show-children)
           _ (update-component-state ds-conn id :show-children new-expanded)
-          new-node-data (get-component-state @ds-conn id)
-          to-value (queries/derive-node-height new-node-data)
+          to-value (queries/get-node-group-height ds-conn id)
           animation (.timing rn/Animated
-                             height-val
+                             group-height
                              #js {:toValue to-value
                                   :duration 300
                                   :useNativeDriver true})
@@ -89,15 +72,14 @@
                           (println "Animation finished:" finished))))))
 
 (defn toggle-menu
-  [ds-conn {:keys [db/id height-val show-menu] :as node-data}]
+  [ds-conn {:keys [db/id group-height show-menu] :as node-data}]
   (fn []
     (let [new-show-menu (not show-menu)
           _ (update-component-state ds-conn id :show-menu new-show-menu)
           _ (if new-show-menu (update-component-state ds-conn id :show-children true))
-          new-node-data (get-component-state @ds-conn id)
-          to-value (queries/derive-node-height new-node-data)
+          to-value (queries/get-node-group-height ds-conn id)
           animation (.timing rn/Animated
-                             height-val
+                             group-height
                              #js {:toValue to-value
                                   :duration 300
                                   :useNativeDriver true})
@@ -119,18 +101,18 @@
    [:> FontAwesome5 {:name "plus" :size 20 :color :black}]])
 
 (defn initialize-node-states!
-  [ds-conn {:keys [show-children height-val] :as node-data}]
+  [ds-conn {:keys [show-children item-height group-height] :as node-data}]
   (when (nil? show-children)
-    (initialize-show-children! ds-conn node-data))
-  (when (nil? height-val)
-    (initialize-height-atom! ds-conn node-data)))
+    (init/initialize-show-children! ds-conn node-data))
+  #_(when (or (nil? item-height) (nil? group-height))
+      (init/initialize-heights! ds-conn node-data)))
 
 (defn default-node
-  [ds-conn {:keys [db/id sub-nodes show-children height-val] :as node-data} render-content nesting-depth rendered-sub-nodes]
+  [ds-conn {:keys [db/id sub-nodes show-children group-height] :as node-data} render-content nesting-depth rendered-sub-nodes]
   (initialize-node-states! ds-conn node-data)
   [:> rn/Animated.View
    {:style {:overflow "hidden"
-            :height height-val}}
+            :height group-height}}
    [:> rn/Pressable {:on-press (toggle ds-conn node-data)
                      :on-long-press (toggle-menu ds-conn node-data)}
     (render-content ds-conn node-data nesting-depth)]

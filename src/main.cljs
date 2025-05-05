@@ -58,7 +58,7 @@
 
 (defn home-component
   [ds-conn]
-  (let [top-level-nodes (map first (queries/find-top-level-nodes ds-conn))]
+  (let [top-level-nodes (remove empty? (queries/find-top-level-nodes ds-conn))]
     [:> rn/SafeAreaView {:style {:padding-top (if (= (get (js->clj rn/Platform) "OS") "android") 50 0)
                                  :height "100vh" :width "100vh"
                                  :background-color :gray :flex 1}}
@@ -66,6 +66,7 @@
      [:> rn/ScrollView {:style {:flex 1 :max-height "95vh"}}
       (map #(render-node ds-conn % 0) top-level-nodes)]
      (node/create-node-button ds-conn)]))
+
 
 (defn root [ds-conn]
   (let [main-nav nil #_(when (not (nil? conn)) (navigation/get-main-nav-state conn))]

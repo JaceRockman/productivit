@@ -3,12 +3,11 @@
 
 (defn find-top-level-nodes
   [conn]
-  (let [nodes (ds/q '[:find (pull ?e [* [:_sub-nodes :as :parents]])
-                      :in $
-                      :where [?e :entity-type "node"]]
-                    @conn)]
-    ;; (println "nodes" nodes)
-    (filter #(-> % first :parents nil?) nodes)))
+  (let [nodes (map first (ds/q '[:find (pull ?e [* [:_sub-nodes :as :parents]])
+                                 :in $
+                                 :where [?e :entity-type "node"]]
+                               @conn))]
+    (filterv #(-> % :parents nil?) nodes)))
 
 (defn find-top-level-node-ids
   [conn]
@@ -36,16 +35,27 @@
       (recur (concat displayed-nodes next-children)
              (flatten (map #(get-shown-children db-conn state-conn %) next-children))))))
 
-(defn derive-node-height
+(defn derive-node-item-height
   [node-data]
-  (loop [nodes [node-data]
-         node-height (if (:show-menu node-data) 84 42)]
-    (let [next-sub-nodes (apply concat (remove nil? (map #(when (:show-children %) (:sub-nodes %)) nodes)))
-          next-nodes-height (apply + (map #(if (:show-menu %) 84 42) next-sub-nodes))]
-      (if (empty? next-sub-nodes)
-        node-height
-        (recur next-sub-nodes
-               (+ node-height next-nodes-height))))))
+  (if (:show-menu node-data)
+    84
+    42))
+
+(defn conditionally-recursive-get-attribute
+  [query-result predicate nesting-key attribute-key map-of-existing-values]
+  (let [updated-map-of-values (assoc map-of-existing-values (:db/id query-result) (get query-result attribute-key))
+        nested-result (when (predicate query-result) (get query-result nesting-key))]
+    (if (and (coll? nested-result) (not (empty? nested-result)))
+      (apply merge
+             (map #(conditionally-recursive-get-attribute % predicate nesting-key attribute-key updated-map-of-values) nested-result))
+      updated-map-of-values)))
+
+(defn get-node-group-height
+  [db-conn node-id]
+  (let [pull-result (ds/pull @db-conn '[*] node-id)
+        item-heights (conditionally-recursive-get-attribute
+                      pull-result #(get % :show-children) :sub-nodes :item-height {})]
+    (apply + (vals item-heights))))
 
 (defn get-state-node-parent
   [state-conn state-eid]

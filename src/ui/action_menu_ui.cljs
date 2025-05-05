@@ -148,7 +148,6 @@
                            :style {:border-width 1 :border-color :black :padding 5 :border-radius 5 :width 100}
                            :on-change-text (fn [text]
                                              (let [new-value (js/parseInt text)]
-                                               (println "new-value" new-value)
                                                (numeric-input-state-change ds-conn {:attribute attribute
                                                                                     :new-value new-value})))}]]))}))
 

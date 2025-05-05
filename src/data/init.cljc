@@ -6,41 +6,38 @@
             [data.database :as database]
             [data.queries :as queries]))
 
+(defn initialize-show-children!
+  [ds-conn {:keys [db/id] :as node-data}]
+  (ds/transact! ds-conn [{:db/id id :show-children true}]))
+
+(defn empty-or-nil?
+  [val]
+  (or (empty? val) (nil? val)))
+
+(defn set-initial-state-values
+  [{:keys [:sub-nodes] :as node-data}]
+  (let [initialized-sub-nodes (when (not (empty-or-nil? sub-nodes))
+                                (map set-initial-state-values sub-nodes))]
+    (assoc node-data
+           :show-children true
+           :show-menu false
+           :item-height 42
+           :sub-nodes (or (vec initialized-sub-nodes) []))))
+
 (defn node->init-state
-  [[{:keys [db/id sub-nodes] :as db-node-data}]]
-  (let [result (if-let [sub-nodes (when sub-nodes (mapv node->init-state (map vector sub-nodes)))]
-                 (assoc db-node-data
-                        :sub-nodes sub-nodes
-                        :show-children true)
-                 (assoc db-node-data
-                        :show-children true))]
-    ;; (println "result" result)
+  [db-node-data]
+  (let [{:keys [:sub-nodes] :as basic-state-node-data} (set-initial-state-values db-node-data)
+        initialized-children (when (not (empty-or-nil? sub-nodes))
+                               (mapv node->init-state sub-nodes))
+        node-data-with-updated-children (assoc basic-state-node-data
+                                               :sub-nodes (or initialized-children []))
+        raw-calculated-group-height (apply + (vals (queries/conditionally-recursive-get-attribute
+                                                    node-data-with-updated-children
+                                                    #(get % :show-children) :sub-nodes :item-height {})))
+        processed-group-height (new (.-Value rn/Animated) raw-calculated-group-height)
+        result (assoc basic-state-node-data
+                      :group-height processed-group-height)]
     result))
-
-;; (defn initialize-app-state
-;;   [db-conn state-conn]
-;;   (loop [index 1]
-;;     (let [db-nodes (ds/q '[:find (pull ?e [:db/id {:sub-nodes ...}])
-;;                            :where [?e :entity-type "node"]]
-;;                          @db-conn)]
-;;       (if (empty? db-nodes)
-;;         (if (< 100 index)
-;;           (do
-;;             (println "initial db state not loaded. Exiting")
-;;             :failure)
-;;           (do
-;;             (println "initial db state not loaded. Retrying #" index)
-;;             (recur (inc index))))
-;;         (ds/transact! state-conn (map node->init-state (queries/find-top-level-nodes db-conn))))))
-;;   (println "Initial db state loaded. Success" #_(ds/q '[:find (pull ?e [:db/id {:sub-nodes ...}])
-;;                                                         :where [?e :entity-type "node"]]
-;;                                                       @state-conn)))
-
-;; (defn initialize-db-and-state
-;;   [db-conn state-conn]
-;;   (ds/transact! db-conn data/simple-example)
-;;   (initialize-app-state db-conn state-conn)
-;;   (println "Initialized db and state"))
 
 (defn initialize-app-state-from-example
   [ds-conn]
@@ -56,10 +53,10 @@
           (do
             (println "initial db state not loaded. Retrying #" index)
             (recur (inc index))))
-        (ds/transact! ds-conn (map node->init-state (queries/find-top-level-nodes ds-conn))))))
-  (println "Initial db state loaded. Success" #_(ds/q '[:find (pull ?e [:db/id {:sub-nodes ...}])
-                                                        :where [?e :entity-type "node"]]
-                                                      @ds-conn)))
+        (ds/transact! ds-conn (mapv node->init-state (queries/find-top-level-nodes ds-conn))))))
+  (println "Initial db state loaded. Success" (ds/q '[:find (pull ?e [:db/id :show-children :item-height :group-height {:sub-nodes ...}])
+                                                      :where [?e :entity-type "node"]]
+                                                    @ds-conn)))
 
 (defn initialize-example-ds-conn
   [ds-conn]
