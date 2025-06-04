@@ -76,7 +76,9 @@
   (fn []
     (let [new-show-menu (not show-menu)
           _ (update-component-state ds-conn id :show-menu new-show-menu)
-          _ (if new-show-menu (update-component-state ds-conn id :show-children true))
+          _ (if new-show-menu (do (update-component-state ds-conn id :show-children true)
+                                  (update-component-state ds-conn id :item-height 84))
+                (update-component-state ds-conn id :item-height 42))
           to-value (queries/get-node-group-height ds-conn id)
           animation (.timing rn/Animated
                              group-height
@@ -121,3 +123,19 @@
    (when (get-component-state ds-conn (:db/id node-data) :show-menu)
      (ActionMenu ds-conn node-data))
    rendered-sub-nodes])
+
+(defn selected-node
+  [ds-conn {:keys [db/id sub-nodes show-children group-height] :as node-data} render-content]
+  [:> rn/View
+   {:style {:overflow "hidden"
+            :height group-height}}
+   [:> rn/Pressable {:on-press (toggle ds-conn node-data)
+                     :on-long-press (toggle-menu ds-conn node-data)}
+    (render-content ds-conn node-data)]])
+
+
+(defn selection-node
+  [ds-conn node-data render-content]
+  [:> rn/Pressable {:on-press #(queries/select-node ds-conn (:db/id node-data))
+                    :on-long-press (toggle-menu ds-conn node-data)}
+   (render-content ds-conn node-data 0)])

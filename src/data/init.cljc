@@ -8,7 +8,7 @@
 
 (defn initialize-show-children!
   [ds-conn {:keys [db/id] :as node-data}]
-  (ds/transact! ds-conn [{:db/id id :show-children true}]))
+  (ds/transact! ds-conn [{:db/id id :show-children false}]))
 
 (defn empty-or-nil?
   [val]
@@ -19,7 +19,7 @@
   (let [initialized-sub-nodes (when (not (empty-or-nil? sub-nodes))
                                 (map set-initial-state-values sub-nodes))]
     (assoc node-data
-           :show-children true
+           :show-children false
            :show-menu false
            :item-height 42
            :sub-nodes (or (vec initialized-sub-nodes) []))))

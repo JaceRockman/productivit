@@ -1,6 +1,25 @@
 (ns data.queries
   (:require [datascript.core :as ds]))
 
+(defn get-currently-selected-node
+  [conn]
+  (ffirst (ds/q '[:find (pull ?node-id [*])
+                  :in $
+                  :where [?e :selected-node ?node-id]]
+                @conn)))
+
+(defn get-node-selection-db-id
+  [conn]
+  (ffirst (ds/q '[:find ?e
+                  :where [?e :selected-node ?node-id]]
+                @conn)))
+
+(defn select-node
+  [conn node-id]
+  (if-let [node-selection-db-id (get-node-selection-db-id conn)]
+    (ds/transact! conn [{:db/id node-selection-db-id :selected-node node-id}])
+    (ds/transact! conn [{:db/id (ds/tempid :db/id) :selected-node node-id}])))
+
 (defn find-top-level-nodes
   [conn]
   (let [nodes (map first (ds/q '[:find (pull ?e [* [:_sub-nodes :as :parents]])
@@ -13,6 +32,10 @@
   [conn]
   (let [nodes (find-top-level-nodes conn)]
     (map #(-> % first :db/id) nodes)))
+
+(defn get-immediate-children
+  [conn node-id]
+  (:sub-nodes (ds/entity @conn node-id)))
 
 (defn get-children
   [db-conn node]

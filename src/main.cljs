@@ -59,19 +59,60 @@
 (defn home-component
   [ds-conn]
   (let [top-level-nodes (remove empty? (queries/find-top-level-nodes ds-conn))]
-    [:> rn/SafeAreaView {:style {:padding-top (if (= (get (js->clj rn/Platform) "OS") "android") 50 0)
-                                 :height "100vh" :width "100vh"
-                                 :background-color :gray :flex 1}}
-     (modal-component ds-conn)
+    [:> rn/View {:style {:height "100vh" :width "100vh" :flex 1}}
+
      [:> rn/ScrollView {:style {:flex 1 :max-height "95vh"}}
       (map #(render-node ds-conn % 0) top-level-nodes)]
      (node/create-node-button ds-conn)]))
 
 
+
+
+
+(defn render-selected-node
+  [ds-conn selected-node]
+  (println "Selected node: " selected-node)
+  [:> rn/View {:style {:flex 1 :max-height "95vh"}}
+   [:> rn/Text (str "Selected Node: " (:text-value selected-node))]])
+
+(defn selected-node-component
+  [ds-conn selected-node]
+  (let [immediate-children (queries/get-immediate-children ds-conn (:db/id selected-node))]
+    [:> rn/View {:style {:height "100vh" :width "100vh" :flex 1}}
+     (node/selected-node ds-conn selected-node render-selected-node)
+     [:> rn/ScrollView {:style {:flex 1 :max-height "95vh"}}
+      (map #(render-node ds-conn % 0) immediate-children)]
+     (node/create-node-button ds-conn)]))
+
+#_(defn determine-node-type
+    [{:keys [text-value start-time task-value tracker-value] :as node-data}]
+    (cond
+      (some? text-value)    text-node-content
+      (some? start-time)    time-node-content
+      (some? task-value)    task-node-content
+      (some? tracker-value) tracker-node-content
+      :else                 #(println "Unknown node:" %2)))
+
+(defn render-node-select
+  [ds-conn node-data]
+  (let [render-fn (determine-node-type node-data)]
+    (node/selection-node ds-conn node-data render-fn)))
+
+(defn node-select-component
+  [ds-conn]
+  (let [top-level-nodes (remove empty? (queries/find-top-level-nodes ds-conn))]
+    [:> rn/View {:style {:height "100vh" :width "100vh" :flex 1}}
+     (map #(render-node-select ds-conn %) top-level-nodes)]))
+
 (defn root [ds-conn]
-  (let [main-nav nil #_(when (not (nil? conn)) (navigation/get-main-nav-state conn))]
-    (case main-nav
-      (r/as-element (home-component ds-conn)))))
+  (let [selected-node (queries/get-currently-selected-node ds-conn)]
+    [:> rn/SafeAreaView {:style {:padding-top (if (= (get (js->clj rn/Platform) "OS") "android") 50 0)
+                                 :height "100vh" :width "100vh"
+                                 :background-color :gray :flex 1}}
+     (modal-component ds-conn)
+     (if (empty? selected-node)
+       (r/as-element (node-select-component ds-conn))
+       (r/as-element (selected-node-component ds-conn selected-node)))]))
 
 (defn ^:dev/after-load render
   [_]
