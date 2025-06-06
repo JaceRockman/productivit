@@ -98,7 +98,7 @@
   [:> rn/Pressable {:style {:align-items :center
                             :justify-content :center
                             :height "5vh"
-                            :width "100%"}
+                            :width "100vw"}
                     :on-press #(println "Create New Top Level Node")}
    [:> FontAwesome5 {:name "plus" :size 20 :color :black}]])
 

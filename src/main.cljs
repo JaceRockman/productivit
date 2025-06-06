@@ -16,7 +16,7 @@
    [ui.tracker-node :refer [tracker-node-content]]
    [data.queries :as queries]
    ["@expo/vector-icons" :refer [FontAwesome5]]
-   [ui.action-menu-ui :as action-menu])
+   [ui.action-menu-ui :as action-menu :refer [ActionMenu]])
   (:require-macros
    [macros :refer [profile]]))
 
@@ -56,58 +56,40 @@
         [:> rn/Pressable {:on-press #(println "Click intercepted")}
          (action-menu/node-edit-window ds-conn node-data)]]])))
 
-(defn home-component
-  [ds-conn]
-  (let [top-level-nodes (remove empty? (queries/find-top-level-nodes ds-conn))]
-    [:> rn/View {:style {:height "100vh" :width "100vh" :flex 1}}
-
-     [:> rn/ScrollView {:style {:flex 1 :max-height "95vh"}}
-      (map #(render-node ds-conn % 0) top-level-nodes)]
-     (node/create-node-button ds-conn)]))
-
-
-
-
-
 (defn render-selected-node
   [ds-conn selected-node]
-  (println "Selected node: " selected-node)
   [:> rn/View {:style {:flex 1 :max-height "95vh"}}
    [:> rn/Text (str "Selected Node: " (:text-value selected-node))]])
 
 (defn selected-node-component
   [ds-conn selected-node]
   (let [immediate-children (queries/get-immediate-children ds-conn (:db/id selected-node))]
-    [:> rn/View {:style {:height "100vh" :width "100vh" :flex 1}}
+    [:> rn/View {:style {:height "100vh" :width "100vw" :flex 1}}
      (node/selected-node ds-conn selected-node render-selected-node)
      [:> rn/ScrollView {:style {:flex 1 :max-height "95vh"}}
       (map #(render-node ds-conn % 0) immediate-children)]
-     (node/create-node-button ds-conn)]))
-
-#_(defn determine-node-type
-    [{:keys [text-value start-time task-value tracker-value] :as node-data}]
-    (cond
-      (some? text-value)    text-node-content
-      (some? start-time)    time-node-content
-      (some? task-value)    task-node-content
-      (some? tracker-value) tracker-node-content
-      :else                 #(println "Unknown node:" %2)))
+     (ActionMenu ds-conn selected-node)]))
 
 (defn render-node-select
   [ds-conn node-data]
   (let [render-fn (determine-node-type node-data)]
     (node/selection-node ds-conn node-data render-fn)))
 
+(defn FlexSpace []
+  [:> rn/View {:style {:flex 1}}])
+
 (defn node-select-component
   [ds-conn]
   (let [top-level-nodes (remove empty? (queries/find-top-level-nodes ds-conn))]
-    [:> rn/View {:style {:height "100vh" :width "100vh" :flex 1}}
-     (map #(render-node-select ds-conn %) top-level-nodes)]))
+    [:> rn/View {:style {:height "100vh" :width "100vw" :flex 1}}
+     (map render-node-select (repeat ds-conn) top-level-nodes)
+     (FlexSpace)
+     (node/create-node-button ds-conn)]))
 
 (defn root [ds-conn]
   (let [selected-node (queries/get-currently-selected-node ds-conn)]
     [:> rn/SafeAreaView {:style {:padding-top (if (= (get (js->clj rn/Platform) "OS") "android") 50 0)
-                                 :height "100vh" :width "100vh"
+                                 :height "100vh" :width "100vw"
                                  :background-color :gray :flex 1}}
      (modal-component ds-conn)
      (if (empty? selected-node)
