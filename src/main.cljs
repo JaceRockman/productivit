@@ -44,17 +44,17 @@
 
 (defn modal-component
   [ds-conn]
-  (let [{:keys [node-ref display]} (queries/get-modal-state ds-conn)]
-    (let [node-data (when (some? node-ref) (ds/pull @ds-conn '[*] node-ref))]
-      [:> rn/Modal {:visible display
-                    :transparent true
-                    :on-request-close #(queries/toggle-modal ds-conn)}
-       [:> rn/Pressable {:style {:position :absolute :top 0 :left 0 :right 0 :bottom 0
-                                 :background-color "rgba(0, 0, 0, 0.5)"
-                                 :align-items :center :justify-content :center}
-                         :on-press #(queries/toggle-modal ds-conn)}
-        [:> rn/Pressable {:on-press #(println "Click intercepted")}
-         (action-menu/node-edit-window ds-conn node-data)]]])))
+  (let [{:keys [node-ref display]} (queries/get-modal-state ds-conn)
+        node-data (when (some? node-ref) (ds/pull @ds-conn '[*] node-ref))]
+    [:> rn/Modal {:visible display
+                  :transparent true
+                  :on-request-close #(queries/toggle-modal ds-conn)}
+     [:> rn/Pressable {:style {:position :absolute :top 0 :left 0 :right 0 :bottom 0
+                               :background-color "rgba(0, 0, 0, 0.5)"
+                               :align-items :center :justify-content :center}
+                       :on-press #(queries/toggle-modal ds-conn)}
+      [:> rn/Pressable {:on-press #(println "Click intercepted")}
+       (action-menu/node-edit-window ds-conn node-data)]]]))
 
 (defn render-selected-node
   [ds-conn selected-node]

@@ -116,7 +116,7 @@
    {:style {:overflow "hidden"
             :height group-height}}
    [:> rn/Pressable {:on-press (toggle ds-conn node-data)
-                     :on-long-press (toggle-menu ds-conn node-data)}
+                     :on-long-press #(queries/select-node ds-conn id)}
     (render-content ds-conn node-data nesting-depth)]
    [:> rn/Text {:style {:position :absolute :top 0 :right 0}} (str "state-id: " (:db/id node-data))]
    (divider)
