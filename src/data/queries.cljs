@@ -35,7 +35,7 @@
 
 (defn get-immediate-children
   [conn node-id]
-  (:sub-nodes (ds/entity @conn node-id)))
+  (ds/pull @conn '[{:sub-nodes [*]}] node-id))
 
 (defn get-children
   [db-conn node]

@@ -32,10 +32,10 @@
     :else                 #(println "Unknown node:" %2)))
 
 (defn render-node
-  [ds-conn {:keys [sub-nodes] :as node-data} nesting-depth]
+  [ds-conn {:keys [show-children sub-nodes] :as node-data} nesting-depth]
   (let [render-fn (determine-node-type node-data)
         rendered-sub-nodes
-        (when (some? sub-nodes)
+        (when (and show-children (some? sub-nodes))
           (doall (map #(render-node ds-conn
                                     %
                                     (inc nesting-depth))
@@ -58,12 +58,12 @@
 
 (defn render-selected-node
   [ds-conn selected-node]
-  [:> rn/View {:style {:flex 1 :max-height "95vh"}}
+  [:> rn/View {:style {:flex 1 :height "10vh"}}
    [:> rn/Text (str "Selected Node: " (:text-value selected-node))]])
 
 (defn selected-node-component
   [ds-conn selected-node]
-  (let [immediate-children (queries/get-immediate-children ds-conn (:db/id selected-node))]
+  (let [immediate-children (:sub-nodes (queries/get-immediate-children ds-conn (:db/id selected-node)))]
     [:> rn/View {:style {:height "100vh" :width "100vw" :flex 1}}
      (node/selected-node ds-conn selected-node render-selected-node)
      [:> rn/ScrollView {:style {:flex 1 :max-height "95vh"}}

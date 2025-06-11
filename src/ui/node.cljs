@@ -128,7 +128,7 @@
   [ds-conn {:keys [db/id sub-nodes show-children group-height] :as node-data} render-content]
   [:> rn/View
    {:style {:overflow "hidden"
-            :height group-height}}
+            :height "5vh"}}
    [:> rn/Pressable {:on-press (toggle ds-conn node-data)
                      :on-long-press (toggle-menu ds-conn node-data)}
     (render-content ds-conn node-data)]])
