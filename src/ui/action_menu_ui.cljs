@@ -22,13 +22,15 @@
            :sub-nodes new-sub-nodes)))
 
 (defn instantiate-template
-  [ds-conn template-data]
+  [ds-conn template-data & {:keys [parent-id]}]
+  (println "parent-id" parent-id)
   (let [db-data (template->db-data template-data)
         db-txn-result (ds/transact! ds-conn [db-data])
         db-node-id (get (:tempids db-txn-result) (:db/id db-data))
         transacted-db-data (ds/pull @ds-conn '[*] db-node-id)
-        new-state-data (init/node->init-state [transacted-db-data])
+        new-state-data (init/node->init-state transacted-db-data)
         result (ds/transact! ds-conn [new-state-data])]
+    (when parent-id (ds/transact! ds-conn [{:db/id parent-id :sub-nodes [new-state-data]}]))
     {:txn-result result
      :db-node-id (get (:tempids result) (:db/id new-state-data))}))
 
@@ -54,14 +56,16 @@
 
 (defn duplicate-node
   [ds-conn {:keys [db/id] :as node-data}]
-  (let [{:keys [txn-result template-id] :as template-result}
+  (let [parent-id (:db/id (queries/get-node-parent ds-conn id))
+
+        {:keys [txn-result template-id] :as template-result}
         (save-as-template ds-conn node-data)
         ;; _ (println "template-result" template-result)
 
         template-data (ds/pull @ds-conn '[*] template-id)
         ;; _ (println "template-data" template-data)
 
-        result (instantiate-template ds-conn template-data)
+        result (instantiate-template ds-conn template-data {:parent-id parent-id})
         ;; _ (println "result" result)
 
         _ (delete-template ds-conn template-id)]
