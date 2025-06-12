@@ -109,16 +109,26 @@
   #_(when (or (nil? item-height) (nil? group-height))
       (init/initialize-heights! ds-conn node-data)))
 
+(defn expand-collapse-button
+  [ds-conn {:keys [db/id show-children] :as node-data}]
+  [:> rn/Pressable {:style {:padding-right 10}
+                    :on-press (toggle-expand ds-conn node-data)}
+   (if show-children
+     [:> FontAwesome5 {:name "chevron-up" :size 16 :color :black}]
+     [:> FontAwesome5 {:name "chevron-down" :size 16 :color :black}])])
+
 (defn sub-node
   [ds-conn {:keys [db/id sub-nodes show-children group-height] :as node-data} render-content nesting-depth rendered-sub-nodes]
   (initialize-node-states! ds-conn node-data)
   [:> rn/Animated.View
    {:style {:overflow "hidden"
             :height group-height}}
-   [:> rn/Pressable {:on-press (toggle-expand ds-conn node-data)
+   [:> rn/Pressable {:style {:flex-direction :row :align-items :center}
+                     :on-press #(queries/select-node ds-conn id)
                      :on-long-press #(queries/select-node ds-conn id)}
-    (render-content ds-conn node-data nesting-depth)]
-   [:> rn/Text {:style {:position :absolute :top 0 :right 0}} (str "state-id: " (:db/id node-data))]
+    (render-content ds-conn node-data nesting-depth)
+    (when (not-empty sub-nodes)
+      [expand-collapse-button ds-conn node-data])]
    (divider)
    rendered-sub-nodes])
 
