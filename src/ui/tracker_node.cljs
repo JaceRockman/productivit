@@ -33,7 +33,8 @@
   [ds-conn
    {:keys [:db/id primary-sub-node sub-nodes
            tracker-value tracker-min-value tracker-max-value increments] :as node-data}
-   nesting-depth]
+   nesting-depth
+   & {:keys [style-override]}]
   (let [increment-vals (filter pos? increments)
         decrement-vals (filter neg? increments)
         inc-dec-component-builder (fn [inc-or-dec-amount]
@@ -43,7 +44,8 @@
         tracker-value-display (if tracker-max-value (str tracker-value "/" tracker-max-value) tracker-value)]
     [:> rn/View {:key id
                  :style (merge (node/node-style nesting-depth)
-                               {:flex-direction :row :gap 5 :align-items :center})}
+                               {:flex-direction :row :gap 5 :align-items :center}
+                               style-override)}
      (map inc-dec-component-builder decrement-vals)
      [:> rn/Text {:style {:font-size 24}} tracker-value-display]
      (map inc-dec-component-builder increment-vals)]))

@@ -7,7 +7,8 @@
   (t-format/formatter "MMM' 'dd', 'YYYY"))
 
 (defn time-node-content
-  [ds-conn {:keys [:db/id primary-sub-node sub-nodes start-time end-time on-time-start on-time-end] :as node-data} nesting-depth]
-  [:> rn/Text {:key id :style (node/node-style nesting-depth)}
+  [ds-conn {:keys [:db/id primary-sub-node sub-nodes start-time end-time on-time-start on-time-end] :as node-data} nesting-depth
+   & {:keys [style-override]}]
+  [:> rn/Text {:key id :style (merge (node/node-style nesting-depth) style-override)}
    (str "Time Value: "
         (t-format/unparse standard-time-format start-time))])

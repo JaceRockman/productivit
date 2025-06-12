@@ -8,10 +8,12 @@
   #(ds/transact! ds-conn [[:db.fn/call node/toggle-state id :task-value]]))
 
 (defn task-node-content
-  [ds-conn {:keys [:db/id primary-sub-node sub-nodes task-value on-task-toggled] :as node-data} nesting-depth]
+  [ds-conn {:keys [:db/id primary-sub-node sub-nodes task-value on-task-toggled] :as node-data} nesting-depth
+   & {:keys [style-override]}]
   [:> rn/Switch {:key id
                  :style (merge (node/node-style nesting-depth)
-                               {:transform [{:scale 0.8}]})
+                               {:transform [{:scale 0.8}]}
+                               style-override)
                  :on-value-change (toggle-task ds-conn id)
                  :value (:task-value node-data)
                  :trackColor {:false "#ffcccc"

@@ -145,4 +145,5 @@
   [ds-conn node-data render-content]
   [:> rn/Pressable {:on-press #(queries/select-node ds-conn (:db/id node-data))
                     :on-long-press (toggle-menu ds-conn node-data)}
-   (render-content ds-conn node-data 0)])
+   (render-content ds-conn node-data 0 {:style-override {:justify-content :center :text-align :center}})
+   (divider)])
