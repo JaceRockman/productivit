@@ -16,9 +16,12 @@
 
 (defn select-node
   [conn node-id]
-  (if-let [node-selection-db-id (get-node-selection-db-id conn)]
-    (ds/transact! conn [{:db/id node-selection-db-id :selected-node node-id}])
-    (ds/transact! conn [{:db/id (ds/tempid :db/id) :selected-node node-id}])))
+  (println node-id)
+  (if (nil? node-id)
+    (ds/transact! conn [[:db.fn/retractEntity (get-node-selection-db-id conn)]])
+    (if-let [node-selection-db-id (get-node-selection-db-id conn)]
+      (ds/transact! conn [{:db/id node-selection-db-id :selected-node node-id}])
+      (ds/transact! conn [{:db/id (ds/tempid :db/id) :selected-node node-id}]))))
 
 (defn find-top-level-nodes
   [conn]
@@ -80,18 +83,18 @@
                       pull-result #(get % :show-children) :sub-nodes :item-height {})]
     (apply + (vals item-heights))))
 
-(defn get-state-node-parent
-  [state-conn state-eid]
+(defn get-node-parent
+  [state-conn eid]
   (ffirst
    (ds/q '[:find (pull ?p [*])
            :in $ ?c
            :where [?p :sub-nodes ?c]]
          @state-conn
-         state-eid)))
+         eid)))
 
 (defn remove-from-parent-node
   [conn eid]
-  (let [{:keys [:db/id] :as parent-node} (get-state-node-parent conn eid)
+  (let [{:keys [:db/id] :as parent-node} (get-node-parent conn eid)
         new-sub-nodes (remove #(= (:db/id %) eid) (:sub-nodes parent-node))]
     (ds/transact! conn [{:db/id id :sub-nodes new-sub-nodes}])))
 

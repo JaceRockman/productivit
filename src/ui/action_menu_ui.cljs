@@ -83,7 +83,7 @@
 ;; This also creates a new instance of the parent node to differentiate it from the original.
 (defn delete-node
   [ds-conn {:keys [db/id] :as node-data}]
-  (let [parent-node (queries/get-state-node-parent ds-conn id)]
+  (let [parent-node (queries/get-node-parent ds-conn id)]
     (queries/remove-from-parent-node ds-conn id)
     (ds/transact! ds-conn [[:db.fn/retractEntity (:db/id node-data)]])))
 
@@ -209,7 +209,8 @@
 (defn ActionMenu
   [ds-conn {:keys [db/id] :as node-data}]
   [:> rn/View
-   [:> rn/View {:style {:background-color :white :flex-direction :row :height 40 :gap 20 :justify-content :center :align-items :center}}
+   [:> rn/View {:style {:background-color :white :flex-direction :row :height 40 :gap 20 :justify-content :space-evenly
+                        :align-items :center}}
     [:> rn/Pressable {:on-press #(duplicate-node ds-conn node-data)}
      [:> FontAwesome5 {:name "copy" :size 20 :color :black}]]
     [:> rn/Pressable {:on-press #(save-as-template ds-conn node-data)}
@@ -219,5 +220,4 @@
     [:> rn/Pressable {:on-press #(delete-node ds-conn node-data)}
      [:> FontAwesome5 {:name "trash" :size 20 :color :black}]]
     [:> rn/Pressable {:on-press #(println "Created Subnode")}
-     [:> FontAwesome5 {:name "plus" :size 20 :color :black}]]]
-   (divider)])
+     [:> FontAwesome5 {:name "plus" :size 20 :color :black}]]]])

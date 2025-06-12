@@ -40,7 +40,7 @@
                                     %
                                     (inc nesting-depth))
                       sub-nodes)))]
-    (node/default-node ds-conn node-data render-fn nesting-depth rendered-sub-nodes)))
+    (node/sub-node ds-conn node-data render-fn nesting-depth rendered-sub-nodes)))
 
 (defn modal-component
   [ds-conn]

@@ -44,7 +44,7 @@
                            #js {:toValue to-value
                                 :duration 300
                                 :useNativeDriver true})
-        next-parent-node (queries/get-state-node-parent ds-conn id)]
+        next-parent-node (queries/get-node-parent ds-conn id)]
 
     (when next-parent-node
       (update-parent-height ds-conn next-parent-node))
@@ -52,7 +52,7 @@
     (.start animation (fn [finished]
                         (println "Animation finished:" finished)))))
 
-(defn toggle
+(defn toggle-expand
   [ds-conn {:keys [db/id show-children group-height] :as node-data}]
   (fn []
     (let [new-expanded (not show-children)
@@ -63,7 +63,7 @@
                              #js {:toValue to-value
                                   :duration 300
                                   :useNativeDriver true})
-          parent-node (queries/get-state-node-parent ds-conn id)]
+          parent-node (queries/get-node-parent ds-conn id)]
 
       (when parent-node
         (update-parent-height ds-conn parent-node))
@@ -85,7 +85,7 @@
                              #js {:toValue to-value
                                   :duration 300
                                   :useNativeDriver true})
-          parent-node (queries/get-state-node-parent ds-conn id)]
+          parent-node (queries/get-node-parent ds-conn id)]
 
       (when parent-node
         (update-parent-height ds-conn parent-node))
@@ -109,30 +109,27 @@
   #_(when (or (nil? item-height) (nil? group-height))
       (init/initialize-heights! ds-conn node-data)))
 
-(defn default-node
+(defn sub-node
   [ds-conn {:keys [db/id sub-nodes show-children group-height] :as node-data} render-content nesting-depth rendered-sub-nodes]
   (initialize-node-states! ds-conn node-data)
   [:> rn/Animated.View
    {:style {:overflow "hidden"
             :height group-height}}
-   [:> rn/Pressable {:on-press (toggle ds-conn node-data)
+   [:> rn/Pressable {:on-press (toggle-expand ds-conn node-data)
                      :on-long-press #(queries/select-node ds-conn id)}
     (render-content ds-conn node-data nesting-depth)]
    [:> rn/Text {:style {:position :absolute :top 0 :right 0}} (str "state-id: " (:db/id node-data))]
    (divider)
-   (when (get-component-state ds-conn (:db/id node-data) :show-menu)
-     (ActionMenu ds-conn node-data))
    rendered-sub-nodes])
 
 (defn selected-node
   [ds-conn {:keys [db/id sub-nodes show-children group-height] :as node-data} render-content]
-  [:> rn/View
-   {:style {:overflow "hidden"
-            :height "5vh"}}
-   [:> rn/Pressable {:on-press (toggle ds-conn node-data)
-                     :on-long-press (toggle-menu ds-conn node-data)}
-    (render-content ds-conn node-data)]])
-
+  (let [parent-id (:db/id (queries/get-node-parent ds-conn id))]
+    [:> rn/Pressable {:style {:overflow "hidden"
+                              :height "5vh"
+                              :background-color :lightgray}
+                      :on-press #(queries/select-node ds-conn parent-id)}
+     (render-content ds-conn node-data)]))
 
 (defn selection-node
   [ds-conn node-data render-content]
