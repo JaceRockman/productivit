@@ -16,7 +16,6 @@
 
 (defn select-node
   [conn node-id]
-  (println node-id)
   (if (nil? node-id)
     (ds/transact! conn [[:db.fn/retractEntity (get-node-selection-db-id conn)]])
     (if-let [node-selection-db-id (get-node-selection-db-id conn)]
@@ -84,12 +83,12 @@
     (apply + (vals item-heights))))
 
 (defn get-node-parent
-  [state-conn eid]
+  [conn eid]
   (ffirst
    (ds/q '[:find (pull ?p [*])
            :in $ ?c
            :where [?p :sub-nodes ?c]]
-         @state-conn
+         @conn
          eid)))
 
 (defn remove-from-parent-node

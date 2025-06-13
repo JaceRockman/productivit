@@ -88,8 +88,8 @@
 (defn delete-node
   [ds-conn {:keys [db/id] :as node-data}]
   (let [parent-node (queries/get-node-parent ds-conn id)]
-    (queries/remove-from-parent-node ds-conn id)
-    (ds/transact! ds-conn [[:db.fn/retractEntity (:db/id node-data)]])))
+    (ds/transact! ds-conn [[:db.fn/retractEntity (:db/id node-data)]])
+    (queries/select-node ds-conn (:db/id parent-node))))
 
 
 

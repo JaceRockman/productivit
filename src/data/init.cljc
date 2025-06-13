@@ -18,7 +18,6 @@
   [{:keys [:sub-nodes] :as node-data}]
   (let [initialized-sub-nodes (when (not (empty-or-nil? sub-nodes))
                                 (map set-initial-state-values sub-nodes))]
-    (println node-data)
     (assoc node-data
            :show-children false
            :show-menu false
