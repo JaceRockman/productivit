@@ -210,6 +210,39 @@
     (some? tracker-value) (edit-tracker-node ds-conn node-data)
     :else                 #(println "Unknown node type:" %2)))
 
+(def selected-node-type (r/atom nil))
+
+(defn node-type-select
+  [ds-conn]
+  [:> rn/View
+   [:> rn/Pressable {:on-press #(queries/set-new-node-data ds-conn {:node-type "text"})}
+    [:> rn/Text "Text"]]
+   [:> rn/Pressable {:on-press #(queries/set-new-node-data ds-conn {:node-type "time"})}
+    [:> rn/Text "Time"]]
+   [:> rn/Pressable {:on-press #(queries/set-new-node-data ds-conn {:node-type "task"})}
+    [:> rn/Text "Task"]]
+   [:> rn/Pressable {:on-press #(queries/set-new-node-data ds-conn {:node-type "tracker"})}
+    [:> rn/Text "Tracker"]]])
+
+(defn node-creation-window
+  ([ds-conn]
+   (node-creation-window ds-conn nil))
+  ([ds-conn parent-id]
+   (let [{:keys [db/id node-type] :as new-node-data} (queries/get-new-node-data ds-conn)]
+     [:> rn/View {:style {:background-color :white :gap 10 :align-items :center}}
+      [:> rn/Text "Node Creation Window"]
+      (if (nil? node-type)
+        (node-type-select ds-conn)
+        (case node-type
+          "text" [:> rn/Pressable {:on-press #(queries/set-new-node-data ds-conn {:node-type nil})}
+                  [:> rn/Text "Creating Text Node"]]
+          "time" [:> rn/Pressable {:on-press #(queries/set-new-node-data ds-conn {:node-type nil})}
+                  [:> rn/Text "Creating Time Node"]]
+          "task" [:> rn/Pressable {:on-press #(queries/set-new-node-data ds-conn {:node-type nil})}
+                  [:> rn/Text "Creating Task Node"]]
+          "tracker" [:> rn/Pressable {:on-press #(queries/set-new-node-data ds-conn {:node-type nil})}
+                     [:> rn/Text "Creating Tracker Node"]]))])))
+
 (defn ActionMenu
   [ds-conn {:keys [db/id] :as node-data}]
   [:> rn/View
@@ -223,5 +256,5 @@
      [:> FontAwesome5 {:name "edit" :size 20 :color :black}]]
     [:> rn/Pressable {:on-press #(delete-node ds-conn node-data)}
      [:> FontAwesome5 {:name "trash" :size 20 :color :black}]]
-    [:> rn/Pressable {:on-press #(println "Created Subnode")}
+    [:> rn/Pressable {:on-press #(queries/open-node-creation-modal ds-conn id)}
      [:> FontAwesome5 {:name "plus" :size 20 :color :black}]]]])

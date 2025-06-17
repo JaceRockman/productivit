@@ -119,6 +119,29 @@
     (ds/transact! ds-conn [{:db/id (:db/id modal-state)
                             (keyword k) v}])))
 
+(defn get-new-node-data
+  [ds-conn]
+  (ffirst (ds/q '[:find (pull ?e [*])
+                  :in $
+                  :where [?e :entity-type "new node"]]
+                @ds-conn)))
+
+(defn set-new-node-data
+  [ds-conn {:keys [node-type]}]
+  (let [new-node-data (get-new-node-data ds-conn)
+        new-node-data-id (or (:db/id new-node-data) (ds/tempid :db/id))]
+    (if node-type
+      (ds/transact! ds-conn [{:db/id new-node-data-id :entity-type "new node" :node-type node-type}])
+      (ds/transact! ds-conn [[:db/retract new-node-data-id :node-type]]))))
+
+(defn open-node-creation-modal
+  [ds-conn parent-id]
+  (let [modal-id (:db/id (get-modal-state ds-conn))]
+    (ds/transact! ds-conn [{:db/id modal-id
+                            :parent-id parent-id
+                            :modal-type "node-creation"
+                            :display true}])))
+
 (defn open-node-edit-modal
   [ds-conn {:keys [db/id] :as node-data}]
   (let [modal-id (:db/id (get-modal-state ds-conn))]

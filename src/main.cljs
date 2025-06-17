@@ -44,7 +44,7 @@
 
 (defn modal-component
   [ds-conn]
-  (let [{:keys [node-ref display modal-type]} (queries/get-modal-state ds-conn)
+  (let [{:keys [node-ref display modal-type parent-id]} (queries/get-modal-state ds-conn)
         node-data (when (some? node-ref) (ds/pull @ds-conn '[*] node-ref))]
     [:> rn/Modal {:visible display
                   :transparent true
@@ -56,7 +56,8 @@
       [:> rn/Pressable {:on-press #(println "Click intercepted")}
        (case modal-type
          "node-edit" (action-menu/node-edit-window ds-conn node-data)
-         :else [:> rn/Text "Unknown modal type: " modal-type])]]]))
+         "node-creation" (action-menu/node-creation-window ds-conn parent-id)
+         [:> rn/Text "Unknown modal type: " modal-type])]]]))
 
 (defn render-selected-node
   [ds-conn selected-node]
