@@ -121,9 +121,10 @@
 
 (defn open-node-edit-modal
   [ds-conn {:keys [db/id] :as node-data}]
-  (let [modal-state (get-modal-state ds-conn)]
-    (ds/transact! ds-conn [{:db/id (:db/id modal-state)
+  (let [modal-id (:db/id (get-modal-state ds-conn))]
+    (ds/transact! ds-conn [{:db/id modal-id
                             :node-ref id
+                            :modal-type "node-edit"
                             :display true}])))
 
 (defn toggle-modal
