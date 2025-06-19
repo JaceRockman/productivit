@@ -112,6 +112,12 @@
                   :where [?e :entity-type "modal"]]
                 @ds-conn)))
 
+(defn reset-modal-state
+  [ds-conn]
+  (let [{:keys [db/id] :as modal-state} (get-modal-state ds-conn)]
+    (ds/transact! ds-conn [[:db/retract id :node-ref :modal-type :parent-id :node-type]])
+    (ds/transact! ds-conn [{:db/id id :display false}])))
+
 (defn update-modal-state
   [ds-conn k v]
   (println "update-modal-state" k v)
@@ -142,6 +148,11 @@
                             :modal-type "node-creation"
                             :display true}])))
 
+(defn reset-node-creation-data
+  [ds-conn]
+  (when-let [new-node-data (get-new-node-data ds-conn)]
+    (ds/transact! ds-conn [[:db/retractEntity (:db/id new-node-data)]])))
+
 (defn open-node-edit-modal
   [ds-conn {:keys [db/id] :as node-data}]
   (let [modal-id (:db/id (get-modal-state ds-conn))]
@@ -153,6 +164,8 @@
 (defn toggle-modal
   [ds-conn]
   (let [{:keys [db/id display]} (get-modal-state ds-conn)]
-    (ds/transact! ds-conn [{:db/id id
-                            :display (not display)}])))
+    (if display
+      (reset-modal-state ds-conn)
+      (ds/transact! ds-conn [{:db/id id
+                              :display true}]))))
 

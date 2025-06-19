@@ -42,6 +42,24 @@
                       sub-nodes)))]
     (node/sub-node ds-conn node-data render-fn nesting-depth rendered-sub-nodes)))
 
+(def submit-cancel-button-style {:margin "5%" :flex 1 :background-color :lightblue
+                                 :align-items :center :justify-content :center
+                                 :padding 5
+                                 :border-width 1 :border-color :black})
+
+(defn modal-submit-button
+  [ds-conn submit-fn]
+  [:> rn/Pressable {:style submit-cancel-button-style
+                    :on-press submit-fn}
+   [:> rn/Text "Submit"]])
+
+(defn modal-cancel-button
+  [ds-conn cancel-fn]
+  [:> rn/Pressable {:style submit-cancel-button-style
+                    :on-press #(do (cancel-fn)
+                                   (queries/toggle-modal ds-conn))}
+   [:> rn/Text "Cancel"]])
+
 (defn modal-component
   [ds-conn]
   (let [{:keys [node-ref display modal-type parent-id]} (queries/get-modal-state ds-conn)
@@ -53,11 +71,18 @@
                                :background-color "rgba(0, 0, 0, 0.5)"
                                :align-items :center :justify-content :center}
                        :on-press #(queries/toggle-modal ds-conn)}
-      [:> rn/Pressable {:on-press #(println "Click intercepted")}
+      [:> rn/Pressable {:style {:background-color :white :width "80vw" :height "80vh"}
+                        :on-press #(println "Click intercepted")}
        (case modal-type
          "node-edit" (action-menu/node-edit-window ds-conn node-data)
          "node-creation" (action-menu/node-creation-window ds-conn parent-id)
-         [:> rn/Text "Unknown modal type: " modal-type])]]]))
+         [:> rn/Text "Unknown modal type: " modal-type])
+       [:> rn/View {:style {:flex 1}}]
+       [:> rn/View {:style {:flex-direction :row}}
+        (modal-cancel-button ds-conn #(queries/reset-node-creation-data ds-conn))
+        (modal-submit-button ds-conn #(do (println "Submit")
+                                          (queries/reset-node-creation-data ds-conn)
+                                          (queries/toggle-modal ds-conn)))]]]]))
 
 (defn render-selected-node
   [ds-conn selected-node]
