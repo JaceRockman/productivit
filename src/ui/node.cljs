@@ -99,7 +99,7 @@
                             :justify-content :center
                             :height "5vh"
                             :width "100vw"}
-                    :on-press #(println "Create New Top Level Node")}
+                    :on-press #(queries/open-node-creation-modal ds-conn nil)}
    [:> FontAwesome5 {:name "plus" :size 20 :color :black}]])
 
 (defn initialize-node-states!

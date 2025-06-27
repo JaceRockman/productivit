@@ -143,8 +143,12 @@
 (defn open-node-creation-modal
   [ds-conn parent-id]
   (let [modal-id (:db/id (get-modal-state ds-conn))]
+    (if parent-id
+      (ds/transact! ds-conn [{:db/id modal-id
+                              :parent-id parent-id
+                              :modal-type "node-creation"
+                              :display true}]))
     (ds/transact! ds-conn [{:db/id modal-id
-                            :parent-id parent-id
                             :modal-type "node-creation"
                             :display true}])))
 
