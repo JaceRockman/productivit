@@ -147,10 +147,10 @@
       (ds/transact! ds-conn [{:db/id modal-id
                               :parent-id parent-id
                               :modal-type "node-creation"
-                              :display true}]))
-    (ds/transact! ds-conn [{:db/id modal-id
-                            :modal-type "node-creation"
-                            :display true}])))
+                              :display true}])
+      (ds/transact! ds-conn [{:db/id modal-id
+                              :modal-type "node-creation"
+                              :display true}]))))
 
 (defn reset-node-creation-data
   [ds-conn]

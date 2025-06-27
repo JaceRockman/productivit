@@ -60,29 +60,46 @@
                                    (queries/toggle-modal ds-conn))}
    [:> rn/Text "Cancel"]])
 
+
+
+(defn modal-cancel-and-submit-buttons
+  [ds-conn submit-fn]
+  [:> rn/View {:style {:flex-direction :row}}
+   (modal-cancel-button ds-conn #(queries/reset-node-creation-data ds-conn))
+   (modal-submit-button ds-conn submit-fn)])
+
+(defn modal-pane
+  [ds-conn content]
+  [:> rn/Pressable {:style {:background-color :white :width "80vw" :height "80vh"}
+                    :on-press #(println "Click intercepted")}
+   content
+   [:> rn/View {:style {:flex 1}}]
+   (modal-cancel-and-submit-buttons ds-conn #(println "Submit"))])
+
+(defn modal-background
+  [ds-conn modal-content]
+  [:> rn/Pressable {:style {:position :absolute :top 0 :left 0 :right 0 :bottom 0
+                            :background-color "rgba(0, 0, 0, 0.5)"
+                            :align-items :center :justify-content :center}
+                    :on-press #(queries/toggle-modal ds-conn)}
+   modal-content])
+
+(defn modal-content
+  [ds-conn {:keys [modal-type parent-id] :as modal-state} node-data]
+  (case modal-type
+    "node-edit" (action-menu/node-edit-window ds-conn node-data)
+    "node-creation" (action-menu/node-creation-window ds-conn parent-id)
+    [:> rn/Text "Unknown modal type: " modal-type]))
+
 (defn modal-component
   [ds-conn]
-  (let [{:keys [node-ref display modal-type parent-id]} (queries/get-modal-state ds-conn)
-        node-data (when (some? node-ref) (ds/pull @ds-conn '[*] node-ref))]
+  (let [{:keys [node-ref display] :as modal-state} (queries/get-modal-state ds-conn)
+        node-data (when (some? node-ref) (ds/pull @ds-conn '[*] node-ref))
+        rendered-modal-content (modal-content ds-conn modal-state node-data)]
     [:> rn/Modal {:visible display
                   :transparent true
                   :on-request-close #(queries/toggle-modal ds-conn)}
-     [:> rn/Pressable {:style {:position :absolute :top 0 :left 0 :right 0 :bottom 0
-                               :background-color "rgba(0, 0, 0, 0.5)"
-                               :align-items :center :justify-content :center}
-                       :on-press #(queries/toggle-modal ds-conn)}
-      [:> rn/Pressable {:style {:background-color :white :width "80vw" :height "80vh"}
-                        :on-press #(println "Click intercepted")}
-       (case modal-type
-         "node-edit" (action-menu/node-edit-window ds-conn node-data)
-         "node-creation" (action-menu/node-creation-window ds-conn parent-id)
-         [:> rn/Text "Unknown modal type: " modal-type])
-       [:> rn/View {:style {:flex 1}}]
-       [:> rn/View {:style {:flex-direction :row}}
-        (modal-cancel-button ds-conn #(queries/reset-node-creation-data ds-conn))
-        (modal-submit-button ds-conn #(do (println "Submit")
-                                          (queries/reset-node-creation-data ds-conn)
-                                          (queries/toggle-modal ds-conn)))]]]]))
+     (modal-background ds-conn (modal-pane ds-conn rendered-modal-content))]))
 
 (defn render-selected-node
   [ds-conn selected-node]
