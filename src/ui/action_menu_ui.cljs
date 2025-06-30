@@ -224,24 +224,42 @@
    [:> rn/Pressable {:on-press #(queries/set-new-node-data ds-conn {:node-type "tracker"})}
     [:> rn/Text "Tracker"]]])
 
+(defn text-node-creation-window
+  [ds-conn]
+  [:> rn/View {:style {:background-color :white :gap 10 :align-items :center}}
+   [:> rn/Text "Text Node Creation Window"]
+   [:> rn/TextInput {:placeholder "Enter text"
+                     :on-change-text (fn [text]
+                                       (queries/set-new-node-data ds-conn {:text-value text}))}]])
+
+(defn time-node-creation-window
+  [ds-conn]
+  [:> rn/View {:style {:background-color :white :gap 10 :align-items :center}}
+   [:> rn/Text "Time Node Creation Window"]])
+
+(defn task-node-creation-window
+  [ds-conn]
+  [:> rn/View {:style {:background-color :white :gap 10 :align-items :center}}
+   [:> rn/Text "Task Node Creation Window"]])
+
+(defn tracker-node-creation-window
+  [ds-conn]
+  [:> rn/View {:style {:background-color :white :gap 10 :align-items :center}}
+   [:> rn/Text "Tracker Node Creation Window"]])
+
 (defn node-creation-window
   ([ds-conn]
    (node-creation-window ds-conn nil))
   ([ds-conn parent-id]
-   (let [{:keys [db/id node-type] :as new-node-data} (queries/get-new-node-data ds-conn)]
+   (let [{:keys [db/id node-type] :as new-node-data} (queries/get-temp-node-data ds-conn)]
      [:> rn/View {:style {:background-color :white :gap 10 :align-items :center}}
       [:> rn/Text "Node Creation Window"]
-      (if (nil? node-type)
-        (node-type-select ds-conn)
-        (case node-type
-          "text" [:> rn/Pressable {:on-press #(queries/set-new-node-data ds-conn {:node-type nil})}
-                  [:> rn/Text "Creating Text Node"]]
-          "time" [:> rn/Pressable {:on-press #(queries/set-new-node-data ds-conn {:node-type nil})}
-                  [:> rn/Text "Creating Time Node"]]
-          "task" [:> rn/Pressable {:on-press #(queries/set-new-node-data ds-conn {:node-type nil})}
-                  [:> rn/Text "Creating Task Node"]]
-          "tracker" [:> rn/Pressable {:on-press #(queries/set-new-node-data ds-conn {:node-type nil})}
-                     [:> rn/Text "Creating Tracker Node"]]))])))
+      (case node-type
+        "text"  (text-node-creation-window ds-conn)
+        "time" (time-node-creation-window ds-conn)
+        "task" (task-node-creation-window ds-conn)
+        "tracker" (tracker-node-creation-window ds-conn)
+        (node-type-select ds-conn))])))
 
 (defn ActionMenu
   [ds-conn {:keys [db/id] :as node-data}]

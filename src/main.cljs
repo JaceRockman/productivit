@@ -1,15 +1,13 @@
 (ns main
   (:require
-   [clojure.math :as math]
    [reagent.core :as r]
    ["react-native" :as rn]
    [datascript.core :as ds]
    [expo.root :as expo-root]
    [data.init :as init]
    [data.database :as database]
-   [cljs-time.format :as t-format]
-   [cljs-time.core :as t]
    [ui.node :as node]
+   [ui.modal :as modal]
    [ui.text-node :refer [text-node-content]]
    [ui.time-node :refer [time-node-content]]
    [ui.task-node :refer [task-node-content]]
@@ -41,65 +39,6 @@
                                     (inc nesting-depth))
                       sub-nodes)))]
     (node/sub-node ds-conn node-data render-fn nesting-depth rendered-sub-nodes)))
-
-(def submit-cancel-button-style {:margin "5%" :flex 1 :background-color :lightblue
-                                 :align-items :center :justify-content :center
-                                 :padding 5
-                                 :border-width 1 :border-color :black})
-
-(defn modal-submit-button
-  [ds-conn submit-fn]
-  [:> rn/Pressable {:style submit-cancel-button-style
-                    :on-press submit-fn}
-   [:> rn/Text "Submit"]])
-
-(defn modal-cancel-button
-  [ds-conn cancel-fn]
-  [:> rn/Pressable {:style submit-cancel-button-style
-                    :on-press #(do (cancel-fn)
-                                   (queries/toggle-modal ds-conn))}
-   [:> rn/Text "Cancel"]])
-
-
-
-(defn modal-cancel-and-submit-buttons
-  [ds-conn submit-fn]
-  [:> rn/View {:style {:flex-direction :row}}
-   (modal-cancel-button ds-conn #(queries/reset-node-creation-data ds-conn))
-   (modal-submit-button ds-conn submit-fn)])
-
-(defn modal-pane
-  [ds-conn content]
-  [:> rn/Pressable {:style {:background-color :white :width "80vw" :height "80vh"}
-                    :on-press #(println "Click intercepted")}
-   content
-   [:> rn/View {:style {:flex 1}}]
-   (modal-cancel-and-submit-buttons ds-conn #(println "Submit"))])
-
-(defn modal-background
-  [ds-conn modal-content]
-  [:> rn/Pressable {:style {:position :absolute :top 0 :left 0 :right 0 :bottom 0
-                            :background-color "rgba(0, 0, 0, 0.5)"
-                            :align-items :center :justify-content :center}
-                    :on-press #(queries/toggle-modal ds-conn)}
-   modal-content])
-
-(defn modal-content
-  [ds-conn {:keys [modal-type parent-id] :as modal-state} node-data]
-  (case modal-type
-    "node-edit" (action-menu/node-edit-window ds-conn node-data)
-    "node-creation" (action-menu/node-creation-window ds-conn parent-id)
-    [:> rn/Text "Unknown modal type: " modal-type]))
-
-(defn modal-component
-  [ds-conn]
-  (let [{:keys [node-ref display] :as modal-state} (queries/get-modal-state ds-conn)
-        node-data (when (some? node-ref) (ds/pull @ds-conn '[*] node-ref))
-        rendered-modal-content (modal-content ds-conn modal-state node-data)]
-    [:> rn/Modal {:visible display
-                  :transparent true
-                  :on-request-close #(queries/toggle-modal ds-conn)}
-     (modal-background ds-conn (modal-pane ds-conn rendered-modal-content))]))
 
 (defn render-selected-node
   [ds-conn selected-node]
@@ -136,7 +75,7 @@
     [:> rn/SafeAreaView {:style {:padding-top (if (= (get (js->clj rn/Platform) "OS") "android") 50 0)
                                  :height "100vh" :width "100vw"
                                  :background-color :gray :flex 1}}
-     (modal-component ds-conn)
+     (modal/modal-component ds-conn)
      (if (empty? selected-node)
        (r/as-element (node-select-component ds-conn))
        (r/as-element (selected-node-component ds-conn selected-node)))]))

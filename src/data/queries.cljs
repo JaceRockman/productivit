@@ -125,7 +125,7 @@
     (ds/transact! ds-conn [{:db/id (:db/id modal-state)
                             (keyword k) v}])))
 
-(defn get-new-node-data
+(defn get-temp-node-data
   [ds-conn]
   (ffirst (ds/q '[:find (pull ?e [*])
                   :in $
@@ -133,28 +133,31 @@
                 @ds-conn)))
 
 (defn set-new-node-data
-  [ds-conn {:keys [node-type]}]
-  (let [new-node-data (get-new-node-data ds-conn)
-        new-node-data-id (or (:db/id new-node-data) (ds/tempid :db/id))]
-    (if node-type
-      (ds/transact! ds-conn [{:db/id new-node-data-id :entity-type "new node" :node-type node-type}])
-      (ds/transact! ds-conn [[:db/retract new-node-data-id :node-type]]))))
+  [ds-conn txn-data]
+  (let [new-node-data (get-temp-node-data ds-conn)
+        new-node-data-id (or (:db/id new-node-data) (ds/tempid :db/id))
+        new-node-data-txn (merge {:db/id new-node-data-id :entity-type "new node"} txn-data)]
+    (ds/transact! ds-conn [new-node-data-txn])))
+
+(defn initialize-temp-node-data
+  [ds-conn]
+  (ds/transact! ds-conn [{:db/id (ds/tempid :db/id) :entity-type "new node"}]))
 
 (defn open-node-creation-modal
   [ds-conn parent-id]
-  (let [modal-id (:db/id (get-modal-state ds-conn))]
-    (if parent-id
-      (ds/transact! ds-conn [{:db/id modal-id
-                              :parent-id parent-id
-                              :modal-type "node-creation"
-                              :display true}])
-      (ds/transact! ds-conn [{:db/id modal-id
-                              :modal-type "node-creation"
-                              :display true}]))))
+  (let [modal-id (:db/id (get-modal-state ds-conn))
+        _ (when (empty? (get-temp-node-data ds-conn)) (initialize-temp-node-data ds-conn))
+        temp-node-id (:db/id (get-temp-node-data ds-conn))]
+    (when parent-id
+      (ds/transact! ds-conn [{:db/id temp-node-id
+                              :parent-id parent-id}]))
+    (ds/transact! ds-conn [{:db/id modal-id
+                            :modal-type "node-creation"
+                            :display true}])))
 
 (defn reset-node-creation-data
   [ds-conn]
-  (when-let [new-node-data (get-new-node-data ds-conn)]
+  (when-let [new-node-data (get-temp-node-data ds-conn)]
     (ds/transact! ds-conn [[:db/retractEntity (:db/id new-node-data)]])))
 
 (defn open-node-edit-modal
@@ -173,3 +176,22 @@
       (ds/transact! ds-conn [{:db/id id
                               :display true}]))))
 
+(defn transact-new-node
+  [ds-conn temp-node-data]
+  (println "transact-new-node" temp-node-data)
+  (let [new-node-id (:db/id temp-node-data)
+        new-node-txn (merge (dissoc temp-node-data :parent-id :node-ref)
+                            {:db/id new-node-id :entity-type "node"})]
+    (ds/transact! ds-conn [new-node-txn])
+    (when (:parent-id temp-node-data)
+      (ds/transact! ds-conn [{:db/id (:parent-id temp-node-data) :sub-nodes new-node-id}]))
+    (reset-modal-state ds-conn)
+    (reset-node-creation-data ds-conn)))
+
+(defn update-node-data
+  [ds-conn temp-node-data]
+  (let [node-ref-data (ds/pull @ds-conn '[*] (:node-ref temp-node-data))]
+    (ds/transact! ds-conn [(assoc (dissoc temp-node-data :node-ref :parent-id)
+                                  :db/id (:db/id node-ref-data))])
+    (reset-modal-state ds-conn)
+    (reset-node-creation-data ds-conn)))
