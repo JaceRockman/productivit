@@ -3,12 +3,17 @@
    ["react-native" :as rn]
    [reagent.core :as r]
    ["@expo/vector-icons" :refer [FontAwesome5]]
+   [cljs-time.core :as t]
    [data.database :as database]
    [data.init :as init]
    [data.queries :as queries]
    [datascript.core :as ds]
    [ui.shared :refer [divider]]
    [ui.date-time-picker :refer [DateTimePicker]]
+   [ui.text-node :as text-node]
+   [ui.time-node :as time-node]
+   [ui.tracker-node :as tracker-node]
+   [ui.task-node :as task-node]
    [camel-snake-kebab.core :as csk]))
 
 
@@ -100,117 +105,14 @@
                   :background-color :white :opacity 1 :color :black
                   :text-align :center :font-size 20 :font-weight :bold})
 
-(defn edit-text-node
-  [ds-conn {:keys [text-value] :as node-data}]
-  [:> rn/View {:style modal-style}
-   [:> rn/Text "Text node"]
-   [:> rn/Text (str "Text value: " text-value)]])
-
-
-(defn edit-time-node
-  [ds-conn {:keys [start-time] :as node-data}]
-  [:> rn/View {:style modal-style}
-   [:> rn/Text "Time node"]
-   [:> rn/Text (str "Start time: " start-time)]
-   [:> DateTimePicker {:date-value start-time
-                       :on-change (fn [new-date]
-                                    (ds/transact! ds-conn [{:db/id (:db/id node-data) :start-time new-date}])
-                                    (queries/toggle-modal ds-conn))}]])
-
-(defn edit-task-node
-  [ds-conn {:keys [task-value] :as node-data}]
-  [:> rn/View {:style modal-style}
-   [:> rn/Text "Task node"]
-   [:> rn/Text (str "Task value: " task-value)]])
-
-
-(defn numeric-input-state-change
-  [ds-conn {:keys [attribute new-value]}]
-  (let [{:keys [tracker-min-value tracker-value tracker-max-value]}
-        (queries/get-modal-state ds-conn)]
-    (queries/update-modal-state ds-conn attribute new-value)
-    (queries/update-modal-state ds-conn
-                                :valid-input?
-                                (<= tracker-min-value
-                                    tracker-value
-                                    tracker-max-value))))
-
-(defn clojurize-keys
-  [props]
-  (let [clj-props (js->clj props)]
-    (into {} (map (fn [[k v]] [(csk/->kebab-case-keyword k) (if (map? v) (clojurize-keys v) v)]) clj-props))))
-
-(def NumericInput
-  (r/create-class
-   {:reagent-render
-    (fn [props]
-      (let [{:keys [ds-conn label modal-state attribute]} (clojurize-keys props)]
-        [:> rn/View {:style {:flex-direction :row :gap 10 :align-items :center}}
-         [:> rn/Text label]
-         [:> rn/TextInput {:placeholder (get (js->clj modal-state) (keyword attribute))
-                           :keyboard-type "numeric"
-                           :style {:border-width 1 :border-color :black :padding 5 :border-radius 5 :width 100}
-                           :on-change-text (fn [text]
-                                             (let [new-value (js/parseInt text)]
-                                               (numeric-input-state-change ds-conn {:attribute attribute
-                                                                                    :new-value new-value})))}]]))}))
-
-(defn initialize-modal-state
-  [ds-conn modal-state-data]
-  (let [{:keys [:db/id]} (queries/get-modal-state ds-conn)]
-    (ds/transact! ds-conn
-                  (map (fn [[k v]] [:db/add id k v]) modal-state-data))))
-
-(defn tracker-node-edit-modal
-  [ds-conn node-data]
-  (let [txn-values (select-keys node-data [:tracker-min-value :tracker-value :tracker-max-value])
-        _ (when (not (or (contains? (queries/get-modal-state ds-conn) :tracker-min-value)
-                         (contains? (queries/get-modal-state ds-conn) :tracker-max-value)
-                         (contains? (queries/get-modal-state ds-conn) :tracker-value)))
-            (initialize-modal-state ds-conn txn-values))
-        {:keys [valid-input? tracker-min-value tracker-value tracker-max-value] :as modal-state}
-        (queries/get-modal-state ds-conn)]
-    [:> rn/View {:style modal-style}
-     [:> rn/Text "Tracker node"]
-     [:> rn/Pressable {:style {:position :absolute :top 0 :right 0}
-                       :disabled (not valid-input?)
-                       :on-press #(if valid-input?
-                                    (do (ds/transact! ds-conn [{:db/id (:db/id node-data)
-                                                                :tracker-min-value tracker-min-value
-                                                                :tracker-value tracker-value
-                                                                :tracker-max-value tracker-max-value}])
-                                        (queries/toggle-modal ds-conn))
-
-                                    (println "Invalid Transaction"
-                                             (queries/get-modal-state ds-conn)))}
-      [:> rn/Text {:style {:color (if valid-input? :black :red)}} "Save"]]
-     [:> NumericInput {:label "Minimum value:"
-                       :dsConn ds-conn
-                       :modalState modal-state
-                       :attribute :tracker-min-value}]
-     [:> NumericInput {:label "Tracker value:"
-                       :dsConn ds-conn
-                       :modalState modal-state
-                       :attribute :tracker-value}]
-     [:> NumericInput {:label "Maximum value:"
-                       :dsConn ds-conn
-                       :modalState modal-state
-                       :attribute :tracker-max-value}]]))
-
-(defn edit-tracker-node
-  [ds-conn node-data]
-  (tracker-node-edit-modal ds-conn node-data))
-
 (defn node-edit-window
   [ds-conn {:keys [text-value start-time task-value tracker-value] :as node-data}]
   (cond
-    (some? text-value)    (edit-text-node ds-conn node-data)
-    (some? start-time)    (edit-time-node ds-conn node-data)
-    (some? task-value)    (edit-task-node ds-conn node-data)
-    (some? tracker-value) (edit-tracker-node ds-conn node-data)
+    (some? text-value)    (text-node/text-node-modal ds-conn node-data)
+    (some? start-time)    (time-node/time-node-modal ds-conn node-data)
+    (some? task-value)    (task-node/task-node-modal ds-conn node-data)
+    (some? tracker-value) (tracker-node/tracker-node-modal ds-conn node-data)
     :else                 #(println "Unknown node type:" %2)))
-
-(def selected-node-type (r/atom nil))
 
 (defn node-type-select
   [ds-conn]
@@ -224,29 +126,6 @@
    [:> rn/Pressable {:on-press #(queries/set-new-node-data ds-conn {:node-type "tracker"})}
     [:> rn/Text "Tracker"]]])
 
-(defn text-node-creation-window
-  [ds-conn]
-  [:> rn/View {:style {:background-color :white :gap 10 :align-items :center}}
-   [:> rn/Text "Text Node Creation Window"]
-   [:> rn/TextInput {:placeholder "Enter text"
-                     :on-change-text (fn [text]
-                                       (queries/set-new-node-data ds-conn {:text-value text}))}]])
-
-(defn time-node-creation-window
-  [ds-conn]
-  [:> rn/View {:style {:background-color :white :gap 10 :align-items :center}}
-   [:> rn/Text "Time Node Creation Window"]])
-
-(defn task-node-creation-window
-  [ds-conn]
-  [:> rn/View {:style {:background-color :white :gap 10 :align-items :center}}
-   [:> rn/Text "Task Node Creation Window"]])
-
-(defn tracker-node-creation-window
-  [ds-conn]
-  [:> rn/View {:style {:background-color :white :gap 10 :align-items :center}}
-   [:> rn/Text "Tracker Node Creation Window"]])
-
 (defn node-creation-window
   ([ds-conn]
    (node-creation-window ds-conn nil))
@@ -255,10 +134,10 @@
      [:> rn/View {:style {:background-color :white :gap 10 :align-items :center}}
       [:> rn/Text "Node Creation Window"]
       (case node-type
-        "text"  (text-node-creation-window ds-conn)
-        "time" (time-node-creation-window ds-conn)
-        "task" (task-node-creation-window ds-conn)
-        "tracker" (tracker-node-creation-window ds-conn)
+        "text"  (text-node/text-node-modal ds-conn new-node-data)
+        "time" (time-node/time-node-modal ds-conn new-node-data)
+        "task" (task-node/task-node-modal ds-conn new-node-data)
+        "tracker" (tracker-node/tracker-node-modal ds-conn new-node-data)
         (node-type-select ds-conn))])))
 
 (defn ActionMenu

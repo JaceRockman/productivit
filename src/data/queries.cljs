@@ -140,8 +140,9 @@
     (ds/transact! ds-conn [new-node-data-txn])))
 
 (defn initialize-temp-node-data
-  [ds-conn]
-  (ds/transact! ds-conn [{:db/id (ds/tempid :db/id) :entity-type "new node"}]))
+  [ds-conn & node-data]
+  (println (first node-data))
+  (ds/transact! ds-conn [(merge (first node-data) {:db/id (ds/tempid :db/id) :entity-type "new node"})]))
 
 (defn open-node-creation-modal
   [ds-conn parent-id]
@@ -162,6 +163,7 @@
 
 (defn open-node-edit-modal
   [ds-conn {:keys [db/id] :as node-data}]
+  (initialize-temp-node-data ds-conn node-data)
   (let [modal-id (:db/id (get-modal-state ds-conn))]
     (ds/transact! ds-conn [{:db/id modal-id
                             :node-ref id
