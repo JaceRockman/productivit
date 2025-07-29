@@ -1,4 +1,4 @@
-(ns data
+(ns data.database
   (:require [reagent.core :as r]
             ["react-native" :as rn]
             [datascript.core :as ds]
@@ -60,7 +60,20 @@
    :on-tracker-decrease 'tracker-decrease})
 
 (def simple-example
-  [{:db/id            "1"
+  [{:db/id "modal-state"
+    :entity-type "modal"
+    :valid-input? true}
+   {:db/id "time-example"
+    :entity-type      "node"
+    :start-time       (t/now)
+    :end-time         (t/plus (t/now) (t/minutes 1))}
+   {:db/id             "tracker-example"
+    :entity-type      "node"
+    :tracker-value     0
+    :tracker-min-value 0
+    :tracker-max-value 5
+    :increments [-5 -3 -1 1 3 5]}
+   {:db/id            "1"
     :entity-type      "node"
     :text-value       "1"
     :sub-nodes        []}

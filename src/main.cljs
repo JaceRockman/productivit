@@ -1,97 +1,100 @@
 (ns main
   (:require
-   [clojure.math :as math]
    [reagent.core :as r]
    ["react-native" :as rn]
    [datascript.core :as ds]
    [expo.root :as expo-root]
-   [init :as init]
-   [data :as data]
-   [cljs-time.format :as t-format]
-   [cljs-time.core :as t]
+   [data.init :as init]
+   [data.database :as database]
    [ui.node :as node]
+   [ui.modal :as modal]
    [ui.text-node :refer [text-node-content]]
    [ui.time-node :refer [time-node-content]]
    [ui.task-node :refer [task-node-content]]
    [ui.tracker-node :refer [tracker-node-content]]
    [data.queries :as queries]
-   ["@expo/vector-icons" :refer [FontAwesome5]])
+   ["@expo/vector-icons" :refer [FontAwesome5]]
+   [ui.action-menu-ui :as action-menu :refer [ActionMenu]])
   (:require-macros
    [macros :refer [profile]]))
 
-(def app-db-conn (ds/create-conn data/schema))
-(def app-state-conn (ds/create-conn data/schema))
+(def ds-conn (ds/create-conn database/schema))
 
 (defn determine-node-type
-  [db-conn db-ref]
-  (let [{:keys [text-value start-time task-value tracker-value] :as node}
-        (ds/pull @db-conn
-                 '[:db/id :text-value :start-time :task-value :tracker-value] db-ref)]
-    (cond
-      (some? text-value)    text-node-content
-      (some? start-time)    time-node-content
-      (some? task-value)    task-node-content
-      (some? tracker-value) tracker-node-content
-      :else                 #(println "Unknown node:" %2))))
+  [{:keys [text-value start-time task-value tracker-value] :as node-data}]
+  (cond
+    (some? text-value)    text-node-content
+    (some? start-time)    time-node-content
+    (some? task-value)    task-node-content
+    (some? tracker-value) tracker-node-content
+    :else                 #(println "Unknown node:" %2)))
 
 (defn render-node
-  [db-conn state-conn state-node-id nesting-depth]
-  (let [{:keys [db-ref sub-nodes] :as state-data}
-        (ds/pull @state-conn '[*] state-node-id)
-
-        render-fn (determine-node-type db-conn db-ref)
-        sub-node-ids (map :db/id sub-nodes)
-        sub-nodes
-        (when (some? sub-node-ids)
-          (doall (map #(render-node db-conn
-                                    state-conn
+  [ds-conn {:keys [show-children sub-nodes] :as node-data} nesting-depth]
+  (let [render-fn (determine-node-type node-data)
+        rendered-sub-nodes
+        (when (and show-children (some? sub-nodes))
+          (doall (map #(render-node ds-conn
                                     %
                                     (inc nesting-depth))
-                      sub-node-ids)))]
-    (node/default-node db-conn state-conn render-fn state-data nesting-depth sub-nodes)))
+                      sub-nodes)))]
+    (node/sub-node ds-conn node-data render-fn nesting-depth rendered-sub-nodes)))
 
-(defn home-component
-  [db-conn state-conn]
-  (let [top-level-state-ids (queries/find-top-level-node-ids state-conn)
+(defn render-selected-node
+  [ds-conn selected-node]
+  [:> rn/View {:style {:flex 1 :height "10vh"}}
+   [:> rn/Text (str "Selected Node: " (:text-value selected-node))]])
 
-        ;; Might use this in the future to determine the view height so the + button stays with the content
-        ;; displayed-nodes (queries/recursively-get-displayed-sub-node-ids
-        ;;                   app-db-conn
-        ;;                   app-state-conn
-        ;;                   (queries/find-top-level-node-ids db-conn))
-        ]
-    [:> rn/View {:style {:height "100vh" :width "100vh"
-                         :background :gray :flex 1}}
+(defn selected-node-component
+  [ds-conn selected-node]
+  (let [immediate-children (:sub-nodes (queries/get-immediate-children ds-conn (:db/id selected-node)))]
+    [:> rn/View {:style {:height "100vh" :width "100vw" :flex 1}}
+     (node/selected-node ds-conn selected-node render-selected-node)
      [:> rn/ScrollView {:style {:flex 1 :max-height "95vh"}}
-      (map #(render-node db-conn state-conn % 0) top-level-state-ids)]
-     (node/create-node-button state-conn db-conn)]))
+      (map #(render-node ds-conn % 0) immediate-children)]
+     (ActionMenu ds-conn selected-node)]))
 
-(defn root [db-conn state-conn]
-  (let [main-nav nil #_(when (not (nil? conn)) (navigation/get-main-nav-state conn))]
-    (case main-nav
-      (r/as-element (home-component db-conn state-conn)))))
+(defn render-node-select
+  [ds-conn node-data]
+  (let [render-fn (determine-node-type node-data)]
+    (node/selection-node ds-conn node-data render-fn)))
+
+(defn FlexSpace []
+  [:> rn/View {:style {:flex 1}}])
+
+(defn node-select-component
+  [ds-conn]
+  (let [top-level-nodes (remove empty? (queries/find-top-level-nodes ds-conn))]
+    [:> rn/View {:style {:height "100vh" :width "100vw" :flex 1}}
+     (map render-node-select (repeat ds-conn) top-level-nodes)
+     (FlexSpace)
+     (node/create-node-button ds-conn)]))
+
+(defn root [ds-conn]
+  (let [selected-node (queries/get-currently-selected-node ds-conn)]
+    [:> rn/SafeAreaView {:style {:padding-top (if (= (get (js->clj rn/Platform) "OS") "android") 50 0)
+                                 :height "100vh" :width "100vw"
+                                 :background-color :gray :flex 1}}
+     (modal/modal-component ds-conn)
+     (if (empty? selected-node)
+       (r/as-element (node-select-component ds-conn))
+       (r/as-element (selected-node-component ds-conn selected-node)))]))
 
 (defn ^:dev/after-load render
-  [db-conn state-conn]
+  [_]
   (profile "render"
-           (expo-root/render-root (r/as-element (root app-db-conn app-state-conn)))))
+           (expo-root/render-root (r/as-element (root ds-conn)))))
 
 ;; re-render on every DB change
-(defn start-db-listen
+(defn start-ds-listen
   []
-  (ds/listen! app-db-conn
+  (ds/listen! ds-conn
               (fn [tx-report]
-                (render (r/atom (:db-after tx-report)) app-state-conn))))
+                (render (r/atom (:db-after tx-report))))))
 
-;; re-render on every state change
-(defn start-state-listen
-  []
-  (ds/listen! app-state-conn
-              (fn [tx-report]
-                (render app-db-conn (r/atom (:db-after tx-report))))))
 
 (defn ^:export init []
-  (init/initialize-db-and-state app-db-conn app-state-conn)
-  (start-db-listen)
-  (start-state-listen)
-  (render app-db-conn app-state-conn))
+  ;; (init/initialize-ds-from-dt ds-conn)
+  (init/initialize-example-ds-conn ds-conn)
+  (start-ds-listen)
+  (render ds-conn))
